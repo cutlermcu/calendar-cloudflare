@@ -1474,9 +1474,11 @@
             return 'production';
         }
 
-        // Fixed API URL Configuration
-        function setApiUrl() {
-            app.state.environment = detectEnvironment();
+                // Fixed API URL Configuration
+           function setApiUrl() {
+            // This will automatically use the same domain
+                app.config.apiUrl = window.location.origin;
+            }
             
             if (app.state.environment === 'production') {
                 // Use your actual backend URL with https://
