@@ -100,4 +100,4 @@ export async function onRequestOptions() {
     }
   });
 }
-EOF
+
