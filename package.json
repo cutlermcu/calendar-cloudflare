@@ -1,11 +1,10 @@
-
 {
   "name": "wlwv-calendar-cloudflare",
   "version": "1.0.0",
   "description": "WLWV Life Calendar - Cloudflare Pages with D1",
   "private": true,
   "scripts": {
-    "build": "echo 'No build needed'",
+    "build": "echo 'No build step required'",
     "dev": "wrangler pages dev public",
     "preview": "wrangler pages dev public --d1=DB"
   },
