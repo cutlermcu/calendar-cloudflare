@@ -44,9 +44,3 @@ export async function onRequest(context) {
     });
   }
 }
-EOF
-
-# Commit and push
-git add functions/api/debug.js
-git commit -m "Add debug function"
-git push
