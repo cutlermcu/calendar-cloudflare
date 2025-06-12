@@ -1,5 +1,3 @@
-
-cat > functions/api/init.js << 'EOF'
 export async function onRequestPost(context) {
   const { env } = context;
   
