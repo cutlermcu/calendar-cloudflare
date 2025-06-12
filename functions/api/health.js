@@ -1,5 +1,3 @@
-
-// functions/api/health.js
 export async function onRequest(context) {
   const { env } = context;
   
