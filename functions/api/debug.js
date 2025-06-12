@@ -1,4 +1,3 @@
-cat > functions/api/debug.js << 'EOF'
 export async function onRequest(context) {
   const { env, request } = context;
   
