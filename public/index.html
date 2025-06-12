@@ -228,12 +228,17 @@
         }
 
         .admin-access {
-            display: flex;
+            display: none;
             gap: 20px;
             justify-content: center;
             padding-top: 30px;
             border-top: 1px solid #e5e7eb;
             margin-top: 30px;
+        }
+
+        /* Show admin access buttons only in admin mode */
+        body.admin-active .admin-access {
+            display: flex;
         }
 
         .setup-screen {
@@ -308,7 +313,7 @@
         }
 
         .current-month {
-            font-size: 1.2rem;
+            font-size: 1.4rem;
             font-weight: 600;
             min-width: 150px;
             text-align: center;
@@ -335,6 +340,8 @@
             background: #e2e8f0;
             margin: 1px;
             flex: 1;
+            position: relative;
+            z-index: 1;
         }
 
         .day-header {
@@ -354,6 +361,20 @@
             cursor: pointer;
             display: flex;
             flex-direction: column;
+            overflow: visible; /* Changed from hidden */
+        }
+
+        /* Ensure calendar days in last row have space for dropdowns */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            background: #94a3b8;
+            margin: 1px;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+            padding-bottom: 200px; /* Add space for dropdowns */
         }
 
         .calendar-day:hover {
@@ -400,39 +421,362 @@
         }
 
         /* Additional styles for calendar elements */
-        .event-item {
-            font-size: 0.75rem;
-            padding: 2px 4px;
-            margin: 1px;
-            background: rgba(196, 30, 58, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            color: #c41e3a;
-        }
-
-        .calendar-day.today .event-item {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-
-        .ab-schedule {
+        .event-title-indicator {
             position: absolute;
-            top: 8px;
-            right: 8px;
-            background: rgba(99, 102, 241, 0.9);
+            top: 35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(196, 30, 58, 0.9);
             color: white;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
+            white-space: nowrap;
+            pointer-events: none;
+            max-width: 90%;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .day-type {
+        .ab-schedule-display {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            min-width: 24px;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .ab-schedule-display.schedule-a {
+            background: rgba(59, 130, 246, 0.9);
+        }
+
+        .ab-schedule-display.schedule-b {
+            background: rgba(239, 68, 68, 0.9);
+        }
+
+        .day-type-display {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
             font-size: 0.7rem;
-            color: #8b5cf6;
-            margin-top: 2px;
+            font-weight: 600;
+            max-width: 90%;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+        }
+
+        /* Admin Calendar Controls */
+        .calendar-day.admin-mode {
+            position: relative;
+        }
+
+        /* Show controls when in admin mode */
+        .calendar-day.admin-mode .admin-controls {
+            display: block;
+        }
+
+        .admin-plus {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            background: #c41e3a;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(196, 30, 58, 0.3);
+            transition: all 0.2s ease;
+            opacity: 0;
+            z-index: 15;
+        }
+
+        .calendar-day.admin-mode:hover .admin-plus {
+            opacity: 1;
+        }
+
+        .admin-plus:hover {
+            background: #a01729;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        /* A/B Schedule Dropdown */
+        .ab-schedule-admin {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        /* Admin mode A/B display should not stretch */
+        .ab-schedule-admin .ab-schedule-display {
+            position: relative;
+            top: auto;
+            right: auto;
+            max-width: 24px;
+        }
+
+        .ab-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            padding: 4px;
+            display: none;
+            z-index: 1000;
+            min-width: 80px;
+        }
+
+        .ab-dropdown.show {
+            display: block;
+        }
+
+        .ab-option {
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 2px;
+            color: white;
+            transition: opacity 0.2s;
+        }
+
+        .ab-option:last-child {
+            margin-bottom: 0;
+        }
+
+        .ab-option.option-a {
+            background: #3b82f6;
+        }
+
+        .ab-option.option-b {
+            background: #ef4444;
+        }
+
+        .ab-option.option-clear {
+            background: #6b7280;
+        }
+
+        .ab-option:hover {
+            opacity: 0.8;
+        }
+
+        /* Day Type Dropdown */
+        .day-type-admin {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        /* Admin mode day type display should maintain styling */
+        .day-type-admin .day-type-display {
+            position: relative;
+            bottom: auto;
+            left: auto;
+            transform: none;
+        }
+
+        .day-type-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 4px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            padding: 8px;
+            display: none;
+            z-index: 1000;
+            min-width: 180px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .day-type-dropdown.show {
+            display: block;
+        }
+
+        .day-type-option {
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.1s ease;
+            white-space: nowrap;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        /* Color coding for day type options in dropdown */
+        .day-type-option[data-type="ACCESS"] {
+            background: #3b82f6;
+        }
+
+        .day-type-option[data-type="GRADING"] {
+            background: #8b5cf6;
+        }
+
+        .day-type-option[data-type="FINALS"] {
+            background: #10b981;
+        }
+
+        .day-type-option[data-type="HOLIDAY"] {
+            background: #ef4444;
+        }
+
+        .day-type-option[data-type="NO SCHOOL"] {
+            background: #f59e0b;
+        }
+
+        .day-type-option[data-type="STAFF DEVELOPMENT"] {
+            background: #06b6d4;
+        }
+
+        .day-type-option[data-type="EARLY RELEASE"] {
+            background: #f59e0b;
+        }
+
+        .day-type-option[data-type="SNOW DAY"] {
+            background: #60a5fa;
+        }
+
+        .day-type-option:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .day-type-option.clear {
+            background: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 4px;
+            padding-top: 12px;
+            color: white;
+        }
+
+        .day-type-option.clear:hover {
+            background: #4b5563;
+        }
+
+        /* Department color coding */
+        .dept-asb {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+
+        .dept-life {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-color: #10b981;
+            color: #065f46;
+        }
+
+        .dept-athletics {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+
+        .dept-art-theater {
+            background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+            border-color: #8b5cf6;
+            color: #5b21b6;
+        }
+
+        .dept-counseling {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border-color: #06b6d4;
+            color: #0e7490;
+        }
+
+        .dept-testing {
+            background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .dept-staff {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-color: #64748b;
+            color: #334155;
+        }
+
+        /* Special day type background tinting */
+        .calendar-day.day-type-access {
+            background: #dbeafe; /* Light blue */
+        }
+
+        .calendar-day.day-type-grading {
+            background: #e9d5ff; /* Light purple */
+        }
+
+        .calendar-day.day-type-finals {
+            background: #d1fae5; /* Light green */
+        }
+
+        .calendar-day.day-type-holiday {
+            background: #fee2e2; /* Light red */
+        }
+
+        .calendar-day.day-type-no-school {
+            background: #fed7aa; /* Light orange */
+        }
+
+        .calendar-day.day-type-staff-development {
+            background: #cffafe; /* Light cyan */
+        }
+
+        .calendar-day.day-type-early-release {
+            background: #fed7aa; /* Light orange */
+        }
+
+        .calendar-day.day-type-snow-day {
+            background: #dbeafe; /* Light blue */
+        }
+
+        .calendar-day.day-type-access:hover,
+        .calendar-day.day-type-grading:hover,
+        .calendar-day.day-type-finals:hover,
+        .calendar-day.day-type-holiday:hover,
+        .calendar-day.day-type-no-school:hover,
+        .calendar-day.day-type-staff-development:hover,
+        .calendar-day.day-type-early-release:hover,
+        .calendar-day.day-type-snow-day:hover {
+            filter: brightness(0.95);
         }
 
         .notification {
@@ -480,13 +824,14 @@
         .modal-content {
             background: white;
             border-radius: 15px;
-            padding: 30px;
-            max-width: 500px;
+            max-width: 900px;
             width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
+            max-height: 85vh;
+            overflow: hidden;
             transform: translateY(-20px);
             transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
         .modal.show .modal-content {
@@ -494,23 +839,360 @@
         }
 
         .modal-header {
+            background: linear-gradient(135deg, #c41e3a 0%, #8b1a2b 100%);
+            color: white;
+            padding: 20px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        .modal-header.school-wlhs {
+            background: linear-gradient(135deg, #0f4a2b 0%, #1f6b47 100%);
+        }
+
+        .modal-header.school-wvhs {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
         }
 
         .modal-title {
-            font-size: 1.5rem;
-            font-weight: 600;
+            font-size: 1.4rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
-        .close-btn {
+        .modal-close {
             background: none;
             border: none;
+            color: white;
             font-size: 1.5rem;
             cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-section {
+            margin-bottom: 35px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .modal-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-header {
+            background: #f8fafc;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-content {
+            padding: 20px;
+        }
+
+        /* User Modal Specific Styles */
+        .ab-badge {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .ab-badge.schedule-b {
+            background: rgba(239, 68, 68, 0.9);
+        }
+
+        .event-card {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .event-card:last-child {
+            border-bottom: none;
+        }
+
+        .event-card:hover {
+            background: #f8fafc;
+        }
+
+        .event-info {
+            flex: 1;
+        }
+
+        .event-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
+
+        .event-details {
+            font-size: 0.85rem;
             color: #6b7280;
+        }
+
+        .event-badge {
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* Department color coding for user modal */
+        .event-badge.dept-asb {
+            background: #f59e0b;
+        }
+
+        .event-badge.dept-life {
+            background: #10b981;
+        }
+
+        .event-badge.dept-athletics {
+            background: #3b82f6;
+        }
+
+        .event-badge.dept-art-theater {
+            background: #8b5cf6;
+        }
+
+        .event-badge.dept-counseling {
+            background: #06b6d4;
+        }
+
+        .event-badge.dept-testing {
+            background: #ef4444;
+        }
+
+        .event-badge.dept-staff {
+            background: #64748b;
+        }
+
+        .event-badge.dept-none {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .grade-tabs {
+            display: flex;
+            gap: 6px;
+            margin: 15px 20px;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .grade-tab {
+            padding: 8px 14px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #6b7280;
+        }
+
+        .grade-tab.active {
+            background: #c41e3a;
+            color: white;
+            box-shadow: 0 2px 6px rgba(196, 30, 58, 0.3);
+        }
+
+        .grade-tab:hover:not(.active) {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .material-card {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .material-card:hover {
+            background: #f8fafc;
+        }
+
+        .material-card:last-child {
+            border-bottom: none;
+        }
+
+        .material-info {
+            flex: 1;
+        }
+
+        .material-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
+
+        .material-description {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .access-button {
+            background: #3b82f6;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .access-button:hover {
+            background: #2563eb;
+        }
+
+        .access-button.protected {
+            background: #f59e0b;
+        }
+
+        .access-button.protected:hover {
+            background: #d97706;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.3;
+        }
+
+        /* Admin Modal Specific Styles */
+        .existing-items {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .admin-item-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-item-info {
+            flex: 1;
+        }
+
+        .admin-item-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 2px;
+        }
+
+        .admin-item-details {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        .admin-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+        }
+
+        .btn-edit {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            color: white;
+        }
+
+        .add-form {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group.full-width {
+            flex: 1 1 100%;
+        }
+
+        .btn-add {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-add:hover {
+            background: #059669;
         }
 
         .connection-status {
@@ -534,6 +1216,26 @@
             border: 1px solid #fecaca;
         }
 
+        /* Loading states */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Responsive improvements */
         @media (max-width: 768px) {
             .container {
@@ -553,11 +1255,6 @@
             .calendar-controls {
                 flex-wrap: wrap;
                 gap: 10px;
-            }
-
-            .calendar-day {
-                min-height: 80px;
-                font-size: 0.8rem;
             }
         }
     </style>
@@ -590,7 +1287,7 @@
                         <p>Access WLHS calendar, events, and curriculum materials</p>
                         <div class="school-stats">
                             <div class="stat">
-                                <div class="stat-number" id="wlhs-events-count">0</div>
+                                <div class="stat-number" id="wlhs-events-count">-</div>
                                 <div class="stat-label">Today's Events</div>
                             </div>
                             <div class="stat">
@@ -598,7 +1295,7 @@
                                 <div class="stat-label">Today's Schedule</div>
                             </div>
                             <div class="stat">
-                                <div class="stat-number" id="wlhs-day-type">Regular</div>
+                                <div class="stat-number" id="wlhs-day-type">-</div>
                                 <div class="stat-label">Day Type</div>
                             </div>
                         </div>
@@ -610,7 +1307,7 @@
                         <p>Access WHS calendar, events, and curriculum materials</p>
                         <div class="school-stats">
                             <div class="stat">
-                                <div class="stat-number" id="wvhs-events-count">0</div>
+                                <div class="stat-number" id="wvhs-events-count">-</div>
                                 <div class="stat-label">Today's Events</div>
                             </div>
                             <div class="stat">
@@ -618,14 +1315,14 @@
                                 <div class="stat-label">Today's Schedule</div>
                             </div>
                             <div class="stat">
-                                <div class="stat-number" id="wvhs-day-type">Regular</div>
+                                <div class="stat-number" id="wvhs-day-type">-</div>
                                 <div class="stat-label">Day Type</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="admin-access">
+                <div class="admin-access" id="adminAccess">
                     <button class="btn btn-secondary" onclick="showScreen('setup')">
                         🔧 Database Setup
                     </button>
@@ -649,7 +1346,14 @@
 
                 <form class="setup-form" onsubmit="handleSetup(event)">
                     <div class="form-group">
-                        <label class="form-label">API Base URL</label>
+                        <label class="form-label" for="dbUrl">Database URL (Optional)</label>
+                        <input type="text" class="form-input" id="dbUrl" 
+                               placeholder="Leave empty to use environment variable">
+                        <small style="color: #6b7280; font-size: 0.8rem;">Only needed if DATABASE_URL environment variable is not set</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="apiUrl">API Base URL</label>
                         <input type="text" class="form-input" id="apiUrl" 
                                value="" required readonly style="background: #f3f4f6; color: #6b7280;">
                         <small style="color: #6b7280; font-size: 0.8rem;">Auto-detected from current URL</small>
@@ -673,8 +1377,8 @@
                 <div class="calendar-header">
                     <div>
                         <button class="nav-btn" onclick="showScreen('home')">🏠 Home</button>
-                        <span style="margin-left: 20px; font-size: 1.5rem; font-weight: 700;" id="schoolDisplayName">
-                            🦁 West Linn High School
+                        <span style="margin-left: 20px; font-size: 1.7rem; font-weight: 700;">
+                            <span id="schoolIcon">🦁</span> <span id="schoolName">West Linn High School</span>
                         </span>
                     </div>
                     <div class="calendar-controls">
@@ -685,7 +1389,7 @@
                             <option value="wlhs">🦁 West Linn HS</option>
                             <option value="wvhs">🐱 Wilsonville HS</option>
                         </select>
-                        <button class="admin-toggle" id="adminToggle" onclick="toggleAdminMode()">
+                        <button class="admin-toggle" id="adminToggle">
                             Admin Mode: OFF
                         </button>
                     </div>
@@ -710,6 +1414,12 @@
                     <button class="btn btn-secondary" onclick="testConnection()" style="margin-left: 10px;">
                         Test Connection
                     </button>
+                    <button class="btn btn-secondary" onclick="resetDatabase()" style="margin-left: 10px; background: #ef4444; color: white;">
+                        Reset Database (Drop & Recreate)
+                    </button>
+                    <button class="btn btn-secondary" onclick="testPrompt()" style="margin-left: 10px;">
+                        Test Prompt
+                    </button>
                 </div>
 
                 <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px;">
@@ -720,88 +1430,24 @@
         </div>
     </div>
 
-    <!-- Modal for event editing -->
-    <div class="modal" id="eventModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Add Event</h3>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <form onsubmit="saveEvent(event)">
-                <input type="hidden" id="eventId">
-                <input type="hidden" id="eventDate">
-                <input type="hidden" id="eventSchool">
-                
-                <div class="form-group">
-                    <label class="form-label">Event Title</label>
-                    <input type="text" class="form-input" id="eventTitle" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Department</label>
-                    <input type="text" class="form-input" id="eventDepartment">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Time</label>
-                    <input type="time" class="form-input" id="eventTime">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-input" id="eventDescription" rows="3"></textarea>
-                </div>
-                
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Event</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Day edit modal -->
-    <div class="modal" id="dayModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="dayModalTitle">Edit Day</h3>
-                <button class="close-btn" onclick="closeDayModal()">&times;</button>
-            </div>
-            <div id="dayModalDate" style="font-size: 1.2rem; margin-bottom: 20px;"></div>
-            
-            <div class="form-group">
-                <label class="form-label">A/B Schedule</label>
-                <select class="form-input" id="daySchedule" onchange="updateDaySchedule()">
-                    <option value="">No Schedule</option>
-                    <option value="A">A Day</option>
-                    <option value="B">B Day</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Day Type</label>
-                <input type="text" class="form-input" id="dayType" placeholder="e.g., Early Release, Assembly, Testing"
-                       onblur="updateDayType()">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Events</label>
-                <div id="dayEvents" style="max-height: 200px; overflow-y: auto;">
-                    <!-- Events will be listed here -->
-                </div>
-                <button class="btn btn-primary" style="margin-top: 10px;" onclick="addNewEvent()">
-                    + Add Event
-                </button>
-            </div>
-            
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                <button type="button" class="btn btn-secondary" onclick="closeDayModal()">Close</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Notification -->
     <div class="notification" id="notification"></div>
+
+    <!-- Day Modal -->
+    <div class="modal" id="dayModal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">
+                <div class="modal-title">
+                    <span id="modalDate">Loading...</span>
+                    <div class="ab-badge" id="modalABSchedule" style="display: none;"></div>
+                </div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
 
     <script>
         // Global application state
@@ -811,36 +1457,1052 @@
                 selectedSchool: 'wlhs',
                 adminMode: false,
                 connected: false,
-                currentDayDate: null,
-                events: [],
-                daySchedules: [],
-                dayTypes: [],
-                materials: []
+                environment: 'development',
+                loading: false
             },
             config: {
                 apiUrl: ''
             }
         };
 
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', function() {
-            setApiUrl();
-            document.body.classList.add('district-theme');
-            renderCalendar();
-            testConnection();
-            loadTodayStats();
-        });
+        // Environment Detection Function
+        function detectEnvironment() {
+            const hostname = window.location.hostname;
+            if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('replit')) {
+                return 'development';
+            }
+            return 'production';
+        }
 
+        // Fixed API URL Configuration
         function setApiUrl() {
-            // For Cloudflare Pages, API is at /api
-            app.config.apiUrl = window.location.origin + '/api';
+            app.state.environment = detectEnvironment();
             
+            if (app.state.environment === 'production') {
+                // Use your actual backend URL with https://
+                app.config.apiUrl = 'https://wlwv-calendar-api.vercel.app/api';
+            } else {
+                app.config.apiUrl = window.location.origin + '/api';
+            }
+            
+            console.log('Environment detected:', app.state.environment);
             console.log('API URL set to:', app.config.apiUrl);
             
             // Update the form
             const apiUrlInput = document.getElementById('apiUrl');
             if (apiUrlInput) {
                 apiUrlInput.value = app.config.apiUrl;
+            }
+        }
+
+        // Enhanced API Call Helper with Error Handling
+        async function apiCall(endpoint, options = {}) {
+            try {
+                const url = app.config.apiUrl + endpoint;
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        ...options.headers
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.text();
+                    throw new Error(error || `HTTP ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error(`API call failed for ${endpoint}:`, error);
+                showNotification(`Error: ${error.message}`, true);
+                throw error;
+            }
+        }
+
+        // Cache for calendar data
+        const calendarCache = {
+            events: {},
+            schedules: {},
+            dayTypes: {},
+            materials: {},
+            lastFetch: {}
+        };
+
+        // Helper to check if cache is stale (older than 5 minutes)
+        function isCacheStale(cacheKey) {
+            const lastFetch = calendarCache.lastFetch[cacheKey];
+            if (!lastFetch) return true;
+            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+            return lastFetch < fiveMinutesAgo;
+        }
+
+        // Fetch all calendar data for current view
+        async function fetchCalendarData(forceRefresh = false) {
+            if (!app.state.connected) return false;
+            
+            const school = app.state.selectedSchool;
+            const cacheKey = `${school}-${app.state.currentDate.getFullYear()}-${app.state.currentDate.getMonth()}`;
+            
+            // Use cache if available and not stale
+            if (!forceRefresh && !isCacheStale(cacheKey)) {
+                console.log('Using cached calendar data');
+                return true;
+            }
+            
+            try {
+                setLoading(true);
+                showNotification('Loading calendar data...');
+                
+                // Fetch all data types in parallel
+                const [events, schedules, dayTypes, materials] = await Promise.all([
+                    apiCall(`/events?school=${school}`),
+                    apiCall('/day-schedules'),
+                    apiCall('/day-types'),
+                    apiCall(`/materials?school=${school}`)
+                ]);
+                
+                // Store in cache organized by date
+                calendarCache.events[school] = groupByDate(events);
+                calendarCache.schedules = arrayToDateMap(schedules);
+                calendarCache.dayTypes = arrayToDateMap(dayTypes);
+                calendarCache.materials[school] = groupByDate(materials);
+                calendarCache.lastFetch[cacheKey] = Date.now();
+                
+                showNotification('Calendar data loaded!');
+                return true;
+            } catch (error) {
+                console.error('Failed to fetch calendar data:', error);
+                showNotification('Failed to load calendar data', true);
+                return false;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // Helper to group items by date
+        function groupByDate(items) {
+            return items.reduce((acc, item) => {
+                const date = item.date;
+                if (!acc[date]) acc[date] = [];
+                acc[date].push(item);
+                return acc;
+            }, {});
+        }
+
+        // Helper to convert array to date-keyed map
+        function arrayToDateMap(items) {
+            return items.reduce((acc, item) => {
+                acc[item.date] = item;
+                return acc;
+            }, {});
+        }
+
+        // Create a day element with all data
+        function createDayElement(date, dateStr, school) {
+            const dayElement = document.createElement('div');
+            dayElement.className = 'calendar-day';
+            dayElement.dataset.date = dateStr;
+
+            // Check if this day is in the current month
+            const isCurrentMonth = date.getMonth() === app.state.currentDate.getMonth();
+            if (!isCurrentMonth) {
+                dayElement.classList.add('other-month');
+            }
+
+            // Check if today
+            const isToday = date.toDateString() === new Date().toDateString();
+            if (isToday) dayElement.classList.add('today');
+
+            // Add admin mode class if needed
+            if (app.state.adminMode && isCurrentMonth) {
+                dayElement.classList.add('admin-mode');
+            }
+
+            // Add day type class for background tinting
+            const dayType = calendarCache.dayTypes[dateStr];
+            if (dayType && isCurrentMonth) {
+                const typeClass = dayType.type.toLowerCase().replace(/\s+/g, '-');
+                dayElement.classList.add(`day-type-${typeClass}`);
+            }
+
+            // Add day number
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = date.getDate();
+            dayElement.appendChild(dayNumber);
+
+            // Only add data elements if it's the current month
+            if (isCurrentMonth) {
+                // Get data
+                const schedule = calendarCache.schedules[dateStr];
+                const dayType = calendarCache.dayTypes[dateStr];
+                const events = calendarCache.events[school]?.[dateStr];
+
+                if (app.state.adminMode) {
+                    // Admin mode - add all interactive elements
+                    console.log('Creating admin controls for', dateStr);
+                    
+                    // A/B Schedule dropdown
+                    const abAdmin = document.createElement('div');
+                    abAdmin.className = 'ab-schedule-admin';
+                    
+                    const abDisplay = document.createElement('div');
+                    if (schedule) {
+                        abDisplay.className = `ab-schedule-display schedule-${schedule.schedule.toLowerCase()}`;
+                        abDisplay.textContent = schedule.schedule;
+                    } else {
+                        abDisplay.className = 'ab-schedule-display';
+                        abDisplay.style.background = '#e5e7eb';
+                        abDisplay.style.color = '#6b7280';
+                        abDisplay.textContent = '+';
+                    }
+                    
+                    const abDropdown = document.createElement('div');
+                    abDropdown.className = 'ab-dropdown';
+                    abDropdown.innerHTML = `
+                        <div class="ab-option option-a" data-date="${dateStr}" data-schedule="A">A</div>
+                        <div class="ab-option option-b" data-date="${dateStr}" data-schedule="B">B</div>
+                        <div class="ab-option option-clear" data-date="${dateStr}" data-schedule="clear">Clear</div>
+                    `;
+                    
+                    abAdmin.appendChild(abDisplay);
+                    abAdmin.appendChild(abDropdown);
+                    dayElement.appendChild(abAdmin);
+
+                    // Plus button
+                    const plusBtn = document.createElement('button');
+                    plusBtn.className = 'admin-plus';
+                    plusBtn.textContent = '+';
+                    plusBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        handleDayClick(dateStr);
+                    };
+                    dayElement.appendChild(plusBtn);
+
+                    // Day type dropdown
+                    const dayTypeAdmin = document.createElement('div');
+                    dayTypeAdmin.className = 'day-type-admin';
+                    
+                    const typeDisplay = document.createElement('div');
+                    if (dayType) {
+                        const typeClass = dayType.type.toLowerCase().replace(/\s+/g, '-');
+                        typeDisplay.className = `day-type-display type-${typeClass}`;
+                        typeDisplay.textContent = dayType.type;
+                        // Force background color
+                        const colorMap = {
+                            'access': '#3b82f6',
+                            'grading': '#8b5cf6',
+                            'finals': '#10b981',
+                            'holiday': '#ef4444',
+                            'no-school': '#f59e0b',
+                            'staff-development': '#06b6d4',
+                            'early-release': '#f59e0b',
+                            'snow-day': '#60a5fa'
+                        };
+                        if (colorMap[typeClass]) {
+                            typeDisplay.style.backgroundColor = colorMap[typeClass];
+                            typeDisplay.style.color = 'white';
+                        }
+                    } else {
+                        typeDisplay.className = 'day-type-display';
+                        typeDisplay.style.background = '#e5e7eb';
+                        typeDisplay.style.color = '#6b7280';
+                        typeDisplay.textContent = '+ Day Type';
+                    }
+                    
+                    const typeDropdown = document.createElement('div');
+                    typeDropdown.className = 'day-type-dropdown';
+                    typeDropdown.innerHTML = `
+                        <div class="day-type-option" data-date="${dateStr}" data-type="ACCESS">ACCESS</div>
+                        <div class="day-type-option" data-date="${dateStr}" data-type="GRADING">GRADING</div>
+                        <div class="day-type-option" data-date="${dateStr}" data-type="FINALS">FINALS</div>
+                        <div class="day-type-option" data-date="${dateStr}" data-type="HOLIDAY">HOLIDAY</div>
+                        <div class="day-type-option" data-date="${dateStr}" data-type="NO SCHOOL">NO SCHOOL</div>
+                        <div class="day-type-option" data-date="${dateStr}" data-type="STAFF DEVELOPMENT">STAFF DEVELOPMENT</div>
+                        <div class="day-type-option" data-date="${dateStr}" data-type="EARLY RELEASE">EARLY RELEASE</div>
+                        <div class="day-type-option" data-date="${dateStr}" data-type="SNOW DAY">SNOW DAY</div>
+                        <div class="day-type-option clear" data-date="${dateStr}" data-type="clear">Clear</div>
+                    `;
+                    
+                    dayTypeAdmin.appendChild(typeDisplay);
+                    dayTypeAdmin.appendChild(typeDropdown);
+                    dayElement.appendChild(dayTypeAdmin);
+                } else {
+                    // User mode - display only
+                    if (schedule) {
+                        const abDisplay = document.createElement('div');
+                        abDisplay.className = `ab-schedule-display schedule-${schedule.schedule.toLowerCase()}`;
+                        abDisplay.textContent = schedule.schedule;
+                        dayElement.appendChild(abDisplay);
+                    }
+
+                    if (dayType) {
+                        const typeDisplay = document.createElement('div');
+                        const typeClass = dayType.type.toLowerCase().replace(/\s+/g, '-');
+                        typeDisplay.className = `day-type-display type-${typeClass}`;
+                        typeDisplay.textContent = dayType.type;
+                        // Force background color for user mode too
+                        const colorMap = {
+                            'access': '#3b82f6',
+                            'grading': '#8b5cf6',
+                            'finals': '#10b981',
+                            'holiday': '#ef4444',
+                            'no-school': '#f59e0b',
+                            'staff-development': '#06b6d4',
+                            'early-release': '#f59e0b',
+                            'snow-day': '#60a5fa'
+                        };
+                        if (colorMap[typeClass]) {
+                            typeDisplay.style.backgroundColor = colorMap[typeClass];
+                            typeDisplay.style.color = 'white';
+                        }
+                        dayElement.appendChild(typeDisplay);
+                    }
+                }
+
+                // Add event indicator (both modes)
+                if (events && events.length > 0) {
+                    const eventIndicator = document.createElement('div');
+                    eventIndicator.className = 'event-title-indicator';
+                    eventIndicator.textContent = events[0].title;
+                    if (events.length > 1) {
+                        eventIndicator.textContent += ` +${events.length - 1}`;
+                    }
+                    dayElement.appendChild(eventIndicator);
+                }
+            }
+
+            // Add click handler (only in user mode, admin mode uses plus button)
+            if (!app.state.adminMode) {
+                dayElement.addEventListener('click', () => handleDayClick(dateStr));
+            }
+
+            return dayElement;
+        }
+
+        // Set A/B Schedule
+        async function setABSchedule(dateStr, schedule) {
+            try {
+                await apiCall('/day-schedules', {
+                    method: 'POST',
+                    body: JSON.stringify({ date: dateStr, schedule })
+                });
+                
+                // Update cache
+                if (schedule) {
+                    calendarCache.schedules[dateStr] = { date: dateStr, schedule };
+                } else {
+                    delete calendarCache.schedules[dateStr];
+                }
+                
+                renderCalendar();
+                showNotification(schedule ? `Set ${schedule} day` : 'Cleared schedule');
+            } catch (error) {
+                showNotification('Failed to update schedule', true);
+            }
+        }
+
+        // Set Day Type
+        async function setDayType(dateStr, type) {
+            try {
+                await apiCall('/day-types', {
+                    method: 'POST',
+                    body: JSON.stringify({ date: dateStr, type })
+                });
+                
+                // Update cache
+                if (type) {
+                    calendarCache.dayTypes[dateStr] = { date: dateStr, type };
+                } else {
+                    delete calendarCache.dayTypes[dateStr];
+                }
+                
+                renderCalendar();
+                showNotification(type ? `Set day type: ${type}` : 'Cleared day type');
+            } catch (error) {
+                showNotification('Failed to update day type', true);
+            }
+        }
+
+        // Event delegation for dropdown clicks
+        document.addEventListener('click', function(e) {
+            // Handle A/B schedule options
+            if (e.target.classList.contains('ab-option')) {
+                e.stopPropagation();
+                e.preventDefault();
+                const dateStr = e.target.dataset.date;
+                const schedule = e.target.dataset.schedule;
+                setABSchedule(dateStr, schedule === 'clear' ? null : schedule);
+            }
+            
+            // Handle day type options
+            if (e.target.classList.contains('day-type-option')) {
+                e.stopPropagation();
+                e.preventDefault();
+                const dateStr = e.target.dataset.date;
+                const type = e.target.dataset.type;
+                setDayType(dateStr, type === 'clear' ? null : type);
+            }
+        });
+
+        // Enhanced calendar rendering with data
+        async function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            if (!grid) return;
+
+            // Fetch data if connected
+            if (app.state.connected) {
+                await fetchCalendarData();
+            }
+
+            const year = app.state.currentDate.getFullYear();
+            const month = app.state.currentDate.getMonth();
+            const school = app.state.selectedSchool;
+
+            // Update month display
+            const monthDisplay = document.getElementById('currentMonth');
+            if (monthDisplay) {
+                monthDisplay.textContent = new Intl.DateTimeFormat('en-US', { 
+                    month: 'long', 
+                    year: 'numeric' 
+                }).format(app.state.currentDate);
+            }
+
+            grid.innerHTML = '';
+
+            // Add day headers
+            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            dayHeaders.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'day-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+
+            // Calculate calendar days
+            const firstDay = new Date(year, month, 1);
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+            // Create calendar days
+            for (let i = 0; i < 42; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + i);
+                const dateStr = currentDate.toISOString().split('T')[0];
+
+                const dayElement = createDayElement(currentDate, dateStr, school);
+                grid.appendChild(dayElement);
+            }
+        }
+
+        // Handle day click
+        function handleDayClick(dateStr) {
+            const dateObj = new Date(dateStr + 'T00:00:00');
+            const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            if (app.state.adminMode) {
+                openAdminModal(dateStr, formattedDate);
+            } else {
+                openUserModal(dateStr, formattedDate);
+            }
+        }
+
+        // Open user modal (read-only view)
+        function openUserModal(dateStr, formattedDate) {
+            const modal = document.getElementById('dayModal');
+            const modalDate = document.getElementById('modalDate');
+            const modalHeader = document.getElementById('modalHeader');
+            const modalBody = document.getElementById('modalBody');
+            const modalABSchedule = document.getElementById('modalABSchedule');
+            
+            // Set header
+            modalDate.textContent = formattedDate;
+            modalHeader.className = `modal-header school-${app.state.selectedSchool}`;
+            
+            // Show A/B schedule if exists
+            const schedule = calendarCache.schedules[dateStr];
+            if (schedule) {
+                modalABSchedule.textContent = schedule.schedule;
+                modalABSchedule.className = `ab-badge schedule-${schedule.schedule.toLowerCase()}`;
+                modalABSchedule.style.display = 'block';
+            } else {
+                modalABSchedule.style.display = 'none';
+            }
+            
+            // Build modal content
+            const school = app.state.selectedSchool;
+            const events = calendarCache.events[school]?.[dateStr] || [];
+            const materials = calendarCache.materials[school]?.[dateStr] || [];
+            const dayType = calendarCache.dayTypes[dateStr];
+            
+            let content = '';
+            
+            // Day type notification
+            if (dayType) {
+                content += `
+                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 20px; color: #92400e;">
+                        <strong>Special Schedule:</strong> ${dayType.type}
+                    </div>
+                `;
+            }
+            
+            // Events section
+            content += `
+                <div class="modal-section">
+                    <div class="section-header">
+                        📅 Today's Events
+                    </div>
+                    <div class="section-content" style="padding: 0;">
+            `;
+            
+            if (events.length > 0) {
+                events.forEach(event => {
+                    const timeStr = event.time ? new Date('2000-01-01T' + event.time).toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit' 
+                    }) : '';
+                    
+                    // Determine department class for color coding
+                    let deptClass = 'dept-none';
+                    let deptDisplay = 'General';
+                    
+                    if (event.department) {
+                        deptDisplay = event.department;
+                        const deptKey = event.department.toLowerCase().replace(/[\/\s]+/g, '-');
+                        deptClass = `dept-${deptKey}`;
+                    }
+                    
+                    content += `
+                        <div class="event-card">
+                            <div class="event-info">
+                                <div class="event-title">${event.title}</div>
+                                <div class="event-details">
+                                    ${timeStr}
+                                    ${event.description ? ' • ' + event.description : ''}
+                                </div>
+                            </div>
+                            <div class="event-badge ${deptClass}">${deptDisplay}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                content += `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div>No events scheduled</div>
+                    </div>
+                `;
+            }
+            
+            content += `
+                    </div>
+                </div>
+            `;
+            
+            // Materials section
+            content += `
+                <div class="modal-section">
+                    <div class="section-header">
+                        📚 Materials & Resources
+                    </div>
+            `;
+            
+            // Grade tabs
+            content += `
+                <div class="grade-tabs">
+                    <button class="grade-tab active" onclick="showGrade(9, this)">Grade 9</button>
+                    <button class="grade-tab" onclick="showGrade(10, this)">Grade 10</button>
+                    <button class="grade-tab" onclick="showGrade(11, this)">Grade 11</button>
+                    <button class="grade-tab" onclick="showGrade(12, this)">Grade 12</button>
+                </div>
+            `;
+            
+            // Materials by grade
+            content += '<div class="section-content" style="padding: 0;">';
+            
+            for (let grade = 9; grade <= 12; grade++) {
+                const gradeMaterials = materials.filter(m => m.grade_level === grade);
+                const display = grade === 9 ? 'block' : 'none';
+                
+                content += `<div id="grade-${grade}-materials" style="display: ${display};">`;
+                
+                if (gradeMaterials.length > 0) {
+                    gradeMaterials.forEach(material => {
+                        const isProtected = material.password && material.password.length > 0;
+                        content += `
+                            <div class="material-card">
+                                <div class="material-info">
+                                    <div class="material-title">${material.title}</div>
+                                    ${material.description ? `<div class="material-description">${material.description}</div>` : ''}
+                                </div>
+                                <button class="access-button ${isProtected ? 'protected' : ''}" 
+                                        onclick="accessMaterial('${material.link}', ${isProtected ? `'${material.password}'` : 'null'})">
+                                    ${isProtected ? '🔒 Access' : '📖 Open'}
+                                </button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    content += `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            <div>No materials for Grade ${grade}</div>
+                        </div>
+                    `;
+                }
+                
+                content += '</div>';
+            }
+            
+            content += `
+                    </div>
+                </div>
+            `;
+            
+            modalBody.innerHTML = content;
+            modal.classList.add('show');
+        }
+
+        // Open admin modal (CRUD operations)
+        function openAdminModal(dateStr, formattedDate) {
+            const modal = document.getElementById('dayModal');
+            const modalDate = document.getElementById('modalDate');
+            const modalHeader = document.getElementById('modalHeader');
+            const modalBody = document.getElementById('modalBody');
+            const modalABSchedule = document.getElementById('modalABSchedule');
+            
+            // Set header
+            modalDate.textContent = formattedDate;
+            modalHeader.className = `modal-header school-${app.state.selectedSchool}`;
+            
+            // Show A/B schedule if exists
+            const schedule = calendarCache.schedules[dateStr];
+            if (schedule) {
+                modalABSchedule.textContent = schedule.schedule;
+                modalABSchedule.className = `ab-badge schedule-${schedule.schedule.toLowerCase()}`;
+                modalABSchedule.style.display = 'block';
+            } else {
+                modalABSchedule.style.display = 'none';
+            }
+            
+            // Build admin modal content
+            const school = app.state.selectedSchool;
+            const events = calendarCache.events[school]?.[dateStr] || [];
+            const materials = calendarCache.materials[school]?.[dateStr] || [];
+            
+            let content = `
+                <div class="modal-section">
+                    <div class="section-header">
+                        📅 Events
+                    </div>
+                    <div class="section-content">
+                        <div class="existing-items">
+            `;
+            
+            // List existing events
+            events.forEach(event => {
+                const timeStr = event.time ? new Date('2000-01-01T' + event.time).toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit' 
+                }) : '';
+                const deptClass = event.department ? `dept-${event.department.toLowerCase().replace(/[\/\s]+/g, '-')}` : '';
+                
+                content += `
+                    <div class="admin-item-card ${deptClass}">
+                        <div class="admin-item-info">
+                            <div class="admin-item-title">${event.title}</div>
+                            <div class="admin-item-details">
+                                ${timeStr}
+                                ${event.department ? ' • ' + event.department : ''}
+                                ${event.description ? ' • ' + event.description : ''}
+                            </div>
+                        </div>
+                        <div class="admin-item-actions">
+                            <button class="btn btn-sm btn-edit" onclick="editEvent(${event.id})">Edit</button>
+                            <button class="btn btn-sm btn-delete" onclick="deleteEvent(${event.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (events.length === 0) {
+                content += '<p style="color: #6b7280; text-align: center;">No events scheduled</p>';
+            }
+            
+            content += `
+                        </div>
+                        <div class="add-form">
+                            <form onsubmit="addEvent(event, '${dateStr}'); return false;">
+                                <div class="form-row">
+                                    <div class="form-group" style="flex: 2;">
+                                        <label class="form-label" for="event-title-${dateStr}">Event Title</label>
+                                        <input type="text" class="form-input" id="event-title-${dateStr}" name="title" required>
+                                    </div>
+                                    <div class="form-group" style="flex: 0 0 120px;">
+                                        <label class="form-label" for="event-time-${dateStr}">Time</label>
+                                        <input type="time" class="form-input" id="event-time-${dateStr}" name="time">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group" style="flex: 0 0 160px;">
+                                        <label class="form-label" for="event-dept-${dateStr}">Department</label>
+                                        <select class="form-input" id="event-dept-${dateStr}" name="department">
+                                            <option value="">None</option>
+                                            <option value="ASB">ASB</option>
+                                            <option value="Life">Life</option>
+                                            <option value="Athletics">Athletics</option>
+                                            <option value="Art/Theater">Art/Theater</option>
+                                            <option value="Counseling">Counseling</option>
+                                            <option value="Testing">Testing</option>
+                                            <option value="Staff">Staff</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="flex: 1;">
+                                        <label class="form-label" for="event-desc-${dateStr}">Description (Optional)</label>
+                                        <input type="text" class="form-input" id="event-desc-${dateStr}" name="description">
+                                    </div>
+                                    <div class="form-group" style="flex: 0 0 100px; align-self: flex-end;">
+                                        <button type="submit" class="btn btn-add" style="width: 100%;">Add Event</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-section">
+                    <div class="section-header">
+                        📚 Materials
+                    </div>
+                    <div class="section-content">
+                        <div class="grade-tabs">
+                            <button class="grade-tab active" onclick="showAdminGrade(9, this)">Grade 9</button>
+                            <button class="grade-tab" onclick="showAdminGrade(10, this)">Grade 10</button>
+                            <button class="grade-tab" onclick="showAdminGrade(11, this)">Grade 11</button>
+                            <button class="grade-tab" onclick="showAdminGrade(12, this)">Grade 12</button>
+                        </div>
+            `;
+            
+            // Materials by grade
+            for (let grade = 9; grade <= 12; grade++) {
+                const gradeMaterials = materials.filter(m => m.grade_level === grade);
+                const display = grade === 9 ? 'block' : 'none';
+                
+                content += `<div id="admin-grade-${grade}" style="display: ${display};">`;
+                content += '<div class="existing-items">';
+                
+                gradeMaterials.forEach(material => {
+                    content += `
+                        <div class="admin-item-card">
+                            <div class="admin-item-info">
+                                <div class="admin-item-title">${material.title}</div>
+                                <div class="admin-item-details">
+                                    ${material.description || 'No description'}
+                                    ${material.password ? ' • 🔒 Protected' : ''}
+                                </div>
+                            </div>
+                            <div class="admin-item-actions">
+                                <button class="btn btn-sm btn-edit" onclick="editMaterial(${material.id})">Edit</button>
+                                <button class="btn btn-sm btn-delete" onclick="deleteMaterial(${material.id})">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                if (gradeMaterials.length === 0) {
+                    content += '<p style="color: #6b7280; text-align: center;">No materials for this grade</p>';
+                }
+                
+                content += '</div>';
+                
+                // Add form for this grade
+                content += `
+                    <div class="add-form">
+                        <form onsubmit="addMaterial(event, '${dateStr}', ${grade}); return false;">
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 1;">
+                                    <label class="form-label" for="material-title-${dateStr}-${grade}">Material Title</label>
+                                    <input type="text" class="form-input" id="material-title-${dateStr}-${grade}" name="title" required>
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label class="form-label" for="material-link-${dateStr}-${grade}">Link/URL</label>
+                                    <input type="url" class="form-input" id="material-link-${dateStr}-${grade}" name="link" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group" style="flex: 2;">
+                                    <label class="form-label" for="material-desc-${dateStr}-${grade}">Description (Optional)</label>
+                                    <input type="text" class="form-input" id="material-desc-${dateStr}-${grade}" name="description">
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label class="form-label" for="material-pass-${dateStr}-${grade}">Password (Optional)</label>
+                                    <input type="text" class="form-input" id="material-pass-${dateStr}-${grade}" name="password" placeholder="Leave empty for public">
+                                </div>
+                                <div class="form-group" style="flex: 0 0 120px; align-self: flex-end;">
+                                    <button type="submit" class="btn btn-add" style="width: 100%;">Add Material</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                `;
+                
+                content += '</div>';
+            }
+            
+            content += `
+                    </div>
+                </div>
+            `;
+            
+            modalBody.innerHTML = content;
+            modal.classList.add('show');
+        }
+
+        // Show specific grade in admin modal
+        function showAdminGrade(grade, button) {
+            // Update active tab
+            document.querySelectorAll('.grade-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            button.classList.add('active');
+            
+            // Show/hide grade content
+            for (let g = 9; g <= 12; g++) {
+                const element = document.getElementById(`admin-grade-${g}`);
+                if (element) {
+                    element.style.display = g === grade ? 'block' : 'none';
+                }
+            }
+        }
+
+        // Add event
+        async function addEvent(e, dateStr) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            try {
+                const newEvent = await apiCall('/events', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        school: app.state.selectedSchool,
+                        date: dateStr,
+                        title: formData.get('title'),
+                        department: formData.get('department') || null,
+                        time: formData.get('time') || null,
+                        description: formData.get('description') || ''
+                    })
+                });
+                
+                // Update cache
+                if (!calendarCache.events[app.state.selectedSchool]) {
+                    calendarCache.events[app.state.selectedSchool] = {};
+                }
+                if (!calendarCache.events[app.state.selectedSchool][dateStr]) {
+                    calendarCache.events[app.state.selectedSchool][dateStr] = [];
+                }
+                calendarCache.events[app.state.selectedSchool][dateStr].push(newEvent);
+                
+                // Refresh modal and calendar
+                openAdminModal(dateStr, document.getElementById('modalDate').textContent);
+                renderCalendar();
+                showNotification('Event added successfully!');
+                form.reset();
+            } catch (error) {
+                showNotification('Failed to add event', true);
+            }
+        }
+
+        // Delete event
+        async function deleteEvent(eventId) {
+            if (!confirm('Are you sure you want to delete this event?')) return;
+            
+            try {
+                await apiCall(`/events/${eventId}`, { method: 'DELETE' });
+                
+                // Update cache
+                const school = app.state.selectedSchool;
+                Object.keys(calendarCache.events[school] || {}).forEach(date => {
+                    calendarCache.events[school][date] = calendarCache.events[school][date].filter(e => e.id !== eventId);
+                });
+                
+                // Find the date and refresh modal
+                const modalDate = document.getElementById('modalDate').textContent;
+                const dateStr = new Date(modalDate).toISOString().split('T')[0];
+                openAdminModal(dateStr, modalDate);
+                renderCalendar();
+                showNotification('Event deleted successfully!');
+            } catch (error) {
+                showNotification('Failed to delete event', true);
+            }
+        }
+
+        // Add material
+        async function addMaterial(e, dateStr, gradeLevel) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            try {
+                const newMaterial = await apiCall('/materials', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        school: app.state.selectedSchool,
+                        date: dateStr,
+                        grade_level: gradeLevel,
+                        title: formData.get('title'),
+                        link: formData.get('link'),
+                        description: formData.get('description') || '',
+                        password: formData.get('password') || ''
+                    })
+                });
+                
+                // Update cache
+                if (!calendarCache.materials[app.state.selectedSchool]) {
+                    calendarCache.materials[app.state.selectedSchool] = {};
+                }
+                if (!calendarCache.materials[app.state.selectedSchool][dateStr]) {
+                    calendarCache.materials[app.state.selectedSchool][dateStr] = [];
+                }
+                calendarCache.materials[app.state.selectedSchool][dateStr].push(newMaterial);
+                
+                // Refresh modal
+                openAdminModal(dateStr, document.getElementById('modalDate').textContent);
+                showNotification('Material added successfully!');
+                form.reset();
+            } catch (error) {
+                showNotification('Failed to add material', true);
+            }
+        }
+
+        // Delete material
+        async function deleteMaterial(materialId) {
+            if (!confirm('Are you sure you want to delete this material?')) return;
+            
+            try {
+                await apiCall(`/materials/${materialId}`, { method: 'DELETE' });
+                
+                // Update cache
+                const school = app.state.selectedSchool;
+                Object.keys(calendarCache.materials[school] || {}).forEach(date => {
+                    calendarCache.materials[school][date] = calendarCache.materials[school][date].filter(m => m.id !== materialId);
+                });
+                
+                // Find the date and refresh modal
+                const modalDate = document.getElementById('modalDate').textContent;
+                const dateStr = new Date(modalDate).toISOString().split('T')[0];
+                openAdminModal(dateStr, modalDate);
+                showNotification('Material deleted successfully!');
+            } catch (error) {
+                showNotification('Failed to delete material', true);
+            }
+        }
+
+        // Placeholder for edit functions
+        function editEvent(eventId) {
+            showNotification('Edit functionality coming soon!');
+        }
+
+        function editMaterial(materialId) {
+            showNotification('Edit functionality coming soon!');
+        }
+
+        // Close modal
+        function closeModal() {
+            const modal = document.getElementById('dayModal');
+            modal.classList.remove('show');
+        }
+
+        // Show specific grade materials
+        function showGrade(grade, button) {
+            // Update active tab
+            document.querySelectorAll('.grade-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            button.classList.add('active');
+            
+            // Show/hide grade content
+            for (let g = 9; g <= 12; g++) {
+                const element = document.getElementById(`grade-${g}-materials`);
+                if (element) {
+                    element.style.display = g === grade ? 'block' : 'none';
+                }
+            }
+        }
+
+        // Access material
+        function accessMaterial(link, password) {
+            if (password) {
+                const userPassword = prompt('This material is password protected. Please enter the password:');
+                if (userPassword === password) {
+                    window.open(link, '_blank');
+                } else if (userPassword !== null) {
+                    showNotification('Incorrect password', true);
+                }
+            } else {
+                window.open(link, '_blank');
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Close modal on outside click
+        document.getElementById('dayModal').addEventListener('click', (e) => {
+            if (e.target.id === 'dayModal') {
+                closeModal();
+            }
+        });
+
+        // Fetch Today's Stats for Home Page
+        async function fetchTodayStats() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                
+                // Fetch day schedules and day types first
+                const schedules = await apiCall('/day-schedules');
+                const todaySchedule = schedules.find(s => s.date === today);
+                
+                const dayTypes = await apiCall('/day-types');
+                const todayType = dayTypes.find(t => t.date === today);
+                
+                // Fetch for both schools
+                for (const school of ['wlhs', 'wvhs']) {
+                    try {
+                        // Get events
+                        const events = await apiCall(`/events?school=${school}`);
+                        const todayEvents = events.filter(e => e.date === today);
+                        
+                        // Update UI
+                        document.getElementById(`${school}-events-count`).textContent = todayEvents.length || '0';
+                        document.getElementById(`${school}-schedule`).textContent = todaySchedule?.schedule || 'Regular';
+                        document.getElementById(`${school}-day-type`).textContent = todayType?.type || 'Regular Day';
+                    } catch (error) {
+                        // If data fetch fails for a school, show defaults
+                        document.getElementById(`${school}-events-count`).textContent = '0';
+                        document.getElementById(`${school}-schedule`).textContent = todaySchedule?.schedule || 'Regular';
+                        document.getElementById(`${school}-day-type`).textContent = todayType?.type || 'Regular Day';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch today stats:', error);
+                // Show defaults for both schools
+                for (const school of ['wlhs', 'wvhs']) {
+                    document.getElementById(`${school}-events-count`).textContent = '0';
+                    document.getElementById(`${school}-schedule`).textContent = 'N/A';
+                    document.getElementById(`${school}-day-type`).textContent = 'N/A';
+                }
             }
         }
 
@@ -875,8 +2537,9 @@
                 }
             });
 
-            if (screenId === 'calendar') {
-                loadCalendarData();
+            // Initialize calendar if switching to calendar screen
+            if (screenId === 'calendar' && app.state.connected) {
+                renderCalendar();
             }
         }
 
@@ -888,61 +2551,132 @@
             document.body.classList.add(`school-${schoolCode}`);
             
             // Update school display
-            const schoolNames = {
-                wlhs: '🦁 West Linn High School',
-                wvhs: '🐱 Wilsonville High School'
-            };
-            document.getElementById('schoolDisplayName').textContent = schoolNames[schoolCode];
-            document.getElementById('schoolSelect').value = schoolCode;
+            const schoolIcon = document.getElementById('schoolIcon');
+            const schoolName = document.getElementById('schoolName');
+            const schoolSelect = document.getElementById('schoolSelect');
+            
+            if (schoolCode === 'wlhs') {
+                if (schoolIcon) schoolIcon.textContent = '🦁';
+                if (schoolName) schoolName.textContent = 'West Linn High School';
+                if (schoolSelect) schoolSelect.value = 'wlhs';
+            } else {
+                if (schoolIcon) schoolIcon.textContent = '🐱';
+                if (schoolName) schoolName.textContent = 'Wilsonville High School';
+                if (schoolSelect) schoolSelect.value = 'wvhs';
+            }
             
             showNotification(`Switched to ${schoolCode === 'wlhs' ? 'West Linn HS' : 'Wilsonville HS'}`);
             showScreen('calendar');
         }
 
         async function testConnection() {
+            showNotification('Testing connection...');
+            setLoading(true);
+
             try {
-                const response = await fetch(app.config.apiUrl + '/health');
-                const data = await response.json();
-                
-                if (data.status === 'healthy') {
-                    app.state.connected = true;
-                    updateConnectionStatus(true, 'Connected successfully!');
-                    showNotification('✅ Connection successful!');
-                } else {
-                    throw new Error('API unhealthy');
-                }
+                const data = await apiCall('/health');
+                app.state.connected = true;
+                updateConnectionStatus(true, 'Connected successfully!');
+                showNotification('✅ Connection successful!');
             } catch (error) {
                 app.state.connected = false;
                 updateConnectionStatus(false, 'Connection failed: ' + error.message);
                 showNotification('❌ Connection failed: ' + error.message, true);
+            } finally {
+                setLoading(false);
             }
         }
 
         async function handleSetup(event) {
             event.preventDefault();
             showNotification('Initializing database...');
+            setLoading(true);
+
+            const dbUrl = document.getElementById('dbUrl').value;
+            const requestBody = dbUrl ? { dbUrl: dbUrl } : {};
 
             try {
-                const response = await fetch(app.config.apiUrl + '/init', {
+                const data = await apiCall('/init', {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    }
+                    body: JSON.stringify(requestBody)
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    showNotification('✅ Database initialized successfully!');
-                    app.state.connected = true;
-                    updateConnectionStatus(true, 'Database connected');
-                    
-                    setTimeout(() => showScreen('calendar'), 1500);
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                showNotification('✅ Database initialized successfully!');
+                app.state.connected = true;
+                updateConnectionStatus(true, 'Database connected');
+                
+                // Fetch initial data after successful setup
+                await fetchTodayStats();
+                
+                setTimeout(() => showScreen('calendar'), 1500);
             } catch (error) {
                 showNotification('❌ Setup failed: ' + error.message, true);
                 updateConnectionStatus(false, 'Failed to initialize database');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function initializeDatabase() {
+            return handleSetup({ preventDefault: () => {} });
+        }
+
+        // Reset database by dropping and recreating tables
+        async function resetDatabase() {
+            // First require password
+            const password = prompt('Enter database reset password:');
+            if (password !== 'lions2025') {
+                showNotification('Incorrect password', true);
+                return;
+            }
+            
+            if (!confirm('This will DELETE ALL DATA and recreate the tables. Are you sure?')) {
+                return;
+            }
+            
+            showNotification('Resetting database...');
+            setLoading(true);
+
+            try {
+                // First, drop the existing tables
+                const dropTablesCode = `
+                    DROP TABLE IF EXISTS materials CASCADE;
+                    DROP TABLE IF EXISTS events CASCADE;
+                    DROP TABLE IF EXISTS day_schedules CASCADE;
+                    DROP TABLE IF EXISTS day_types CASCADE;
+                `;
+                
+                // Use fetch to send raw SQL
+                const response = await fetch(app.config.apiUrl + '/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        dropFirst: true,
+                        sql: dropTablesCode 
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to reset database');
+                }
+
+                // Now initialize fresh tables
+                await handleSetup({ preventDefault: () => {} });
+                
+                showNotification('✅ Database reset successfully!');
+                
+                // Refresh the page to clear any cached data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                
+            } catch (error) {
+                showNotification('❌ Reset failed: ' + error.message, true);
+            } finally {
+                setLoading(false);
             }
         }
 
@@ -964,8 +2698,41 @@
             }
         }
 
-        function toggleAdminMode() {
+        function setLoading(loading) {
+            app.state.loading = loading;
+            document.body.classList.toggle('loading', loading);
+        }
+
+        // Make toggleAdminMode globally accessible
+        window.toggleAdminMode = function(event) {
+            if (event) event.preventDefault();
+            
+            console.log('Toggle admin mode called, current state:', app.state.adminMode);
+            
+            // If turning on admin mode, require password
+            if (!app.state.adminMode) {
+                try {
+                    const password = window.prompt('Enter admin password:');
+                    console.log('Password prompt result:', password);
+                    if (password === null) {
+                        console.log('Password cancelled');
+                        return;
+                    }
+                    if (password !== 'wlwv') {
+                        console.log('Incorrect password');
+                        alert('Incorrect password');
+                        return;
+                    }
+                    console.log('Correct password');
+                } catch (e) {
+                    console.error('Error with prompt:', e);
+                    alert('Error showing password prompt');
+                    return;
+                }
+            }
+            
             app.state.adminMode = !app.state.adminMode;
+            console.log('Admin mode now:', app.state.adminMode);
 
             const button = document.getElementById('adminToggle');
             if (button) {
@@ -979,9 +2746,15 @@
                 }
             }
 
+            // Toggle admin access buttons visibility
+            const adminAccess = document.getElementById('adminAccess');
+            if (adminAccess) {
+                adminAccess.style.display = app.state.adminMode ? 'flex' : 'none';
+            }
+
             showNotification(`Admin mode ${app.state.adminMode ? 'enabled' : 'disabled'}`);
-            renderCalendar();
-        }
+            renderCalendar(); // Re-render to show/hide admin controls
+        };
 
         function changeMonth(direction) {
             app.state.currentDate.setMonth(app.state.currentDate.getMonth() + direction);
@@ -995,408 +2768,131 @@
             document.body.classList.remove('school-wlhs', 'school-wvhs');
             document.body.classList.add(`school-${select.value}`);
 
-            const schoolNames = {
-                wlhs: '🦁 West Linn High School',
-                wvhs: '🐱 Wilsonville High School'
-            };
-            document.getElementById('schoolDisplayName').textContent = schoolNames[select.value];
+            // Update school display
+            const schoolIcon = document.getElementById('schoolIcon');
+            const schoolName = document.getElementById('schoolName');
+            
+            if (select.value === 'wlhs') {
+                if (schoolIcon) schoolIcon.textContent = '🦁';
+                if (schoolName) schoolName.textContent = 'West Linn High School';
+            } else {
+                if (schoolIcon) schoolIcon.textContent = '🐱';
+                if (schoolName) schoolName.textContent = 'Wilsonville High School';
+            }
 
             showNotification(`Switched to ${select.value === 'wlhs' ? 'West Linn HS' : 'Wilsonville HS'}`);
-            loadCalendarData();
+            renderCalendar();
         }
 
-        async function loadCalendarData() {
+        // Initialize Application
+        async function initializeApp() {
+            setApiUrl();
+            
+            // Apply district theme initially
+            document.body.classList.add('district-theme');
+            
+            // Test connection
             try {
-                // Load events
-                const eventsResponse = await fetch(`${app.config.apiUrl}/events?school=${app.state.selectedSchool}`);
-                if (eventsResponse.ok) {
-                    app.state.events = await eventsResponse.json();
-                }
-
-                // Load day schedules
-                const schedulesResponse = await fetch(`${app.config.apiUrl}/day-schedules`);
-                if (schedulesResponse.ok) {
-                    app.state.daySchedules = await schedulesResponse.json();
-                }
-
-                // Load day types
-                const typesResponse = await fetch(`${app.config.apiUrl}/day-types`);
-                if (typesResponse.ok) {
-                    app.state.dayTypes = await typesResponse.json();
-                }
-
+                await apiCall('/health');
+                app.state.connected = true;
+                updateConnectionStatus(true, 'Connected to database');
+                
+                // Fetch initial data
+                await fetchTodayStats();
                 renderCalendar();
+                showNotification('Calendar loaded successfully!');
             } catch (error) {
-                console.error('Error loading calendar data:', error);
-                showNotification('Error loading calendar data', true);
+                app.state.connected = false;
+                updateConnectionStatus(false, 'Database connection failed');
+                showNotification('Please set up database connection', true);
+                renderCalendar(); // Still render calendar even if disconnected
             }
         }
 
-        async function loadTodayStats() {
-            const today = new Date().toISOString().split('T')[0];
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
             
-            try {
-                // Load events for both schools
-                for (const school of ['wlhs', 'wvhs']) {
-                    const response = await fetch(`${app.config.apiUrl}/events?school=${school}`);
-                    if (response.ok) {
-                        const events = await response.json();
-                        const todayEvents = events.filter(e => e.date === today);
-                        document.getElementById(`${school}-events-count`).textContent = todayEvents.length;
-                    }
-                }
-
-                // Load schedules
-                const schedulesResponse = await fetch(`${app.config.apiUrl}/day-schedules`);
-                if (schedulesResponse.ok) {
-                    const schedules = await schedulesResponse.json();
-                    const todaySchedule = schedules.find(s => s.date === today);
-                    if (todaySchedule) {
-                        document.getElementById('wlhs-schedule').textContent = todaySchedule.schedule + ' Day';
-                        document.getElementById('wvhs-schedule').textContent = todaySchedule.schedule + ' Day';
-                    }
-                }
-
-                // Load day types
-                const typesResponse = await fetch(`${app.config.apiUrl}/day-types`);
-                if (typesResponse.ok) {
-                    const types = await typesResponse.json();
-                    const todayType = types.find(t => t.date === today);
-                    if (todayType) {
-                        document.getElementById('wlhs-day-type').textContent = todayType.type;
-                        document.getElementById('wvhs-day-type').textContent = todayType.type;
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading today stats:', error);
-            }
-        }
-
-        function renderCalendar() {
-            const grid = document.getElementById('calendarGrid');
-            if (!grid) return;
-
-            const year = app.state.currentDate.getFullYear();
-            const month = app.state.currentDate.getMonth();
-
-            const monthDisplay = document.getElementById('currentMonth');
-            if (monthDisplay) {
-                monthDisplay.textContent = new Intl.DateTimeFormat('en-US', { 
-                    month: 'long', 
-                    year: 'numeric' 
-                }).format(app.state.currentDate);
-            }
-
-            grid.innerHTML = '';
-
-            // Day headers
-            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            dayHeaders.forEach(day => {
-                const header = document.createElement('div');
-                header.className = 'day-header';
-                header.textContent = day;
-                grid.appendChild(header);
-            });
-
-            // Calendar days
-            const firstDay = new Date(year, month, 1);
-            const startDate = new Date(firstDay);
-            startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-            for (let i = 0; i < 42; i++) {
-                const currentDate = new Date(startDate);
-                currentDate.setDate(startDate.getDate() + i);
-
-                const dayElement = document.createElement('div');
-                dayElement.className = 'calendar-day';
-
-                const isToday = currentDate.toDateString() === new Date().toDateString();
-                if (isToday) dayElement.classList.add('today');
-
-                const dateStr = currentDate.toISOString().split('T')[0];
-
-                // Day number
-                const dayNumber = document.createElement('div');
-                dayNumber.className = 'day-number';
-                dayNumber.textContent = currentDate.getDate();
-                dayElement.appendChild(dayNumber);
-
-                // Get data for this day
-                const dayEvents = app.state.events.filter(e => e.date === dateStr);
-                const daySchedule = app.state.daySchedules.find(s => s.date === dateStr);
-                const dayType = app.state.dayTypes.find(t => t.date === dateStr);
-
-                // A/B schedule
-                if (daySchedule) {
-                    const scheduleEl = document.createElement('div');
-                    scheduleEl.className = 'ab-schedule';
-                    scheduleEl.textContent = daySchedule.schedule;
-                    dayElement.appendChild(scheduleEl);
-                }
-
-                // Day type
-                if (dayType) {
-                    const typeEl = document.createElement('div');
-                    typeEl.className = 'day-type';
-                    typeEl.textContent = dayType.type;
-                    dayElement.appendChild(typeEl);
-                }
-
-                // Events
-                dayEvents.slice(0, 3).forEach(event => {
-                    const eventEl = document.createElement('div');
-                    eventEl.className = 'event-item';
-                    eventEl.textContent = event.title;
-                    dayElement.appendChild(eventEl);
-                });
-
-                if (dayEvents.length > 3) {
-                    const moreEl = document.createElement('div');
-                    moreEl.className = 'event-item';
-                    moreEl.textContent = `+${dayEvents.length - 3} more`;
-                    dayElement.appendChild(moreEl);
-                }
-
-                // Click handler
-                if (app.state.adminMode) {
-                    dayElement.onclick = () => openDayModal(dateStr);
+            // Add event listener for admin toggle after a small delay to ensure button exists
+            setTimeout(() => {
+                const adminToggle = document.getElementById('adminToggle');
+                if (adminToggle) {
+                    console.log('Adding click listener to admin toggle button');
+                    adminToggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        console.log('Admin toggle clicked via event listener');
+                        window.toggleAdminMode(e);
+                    });
                 } else {
-                    dayElement.onclick = () => viewDayDetails(dateStr);
+                    console.error('Admin toggle button not found!');
                 }
+            }, 100);
+        });
 
-                grid.appendChild(dayElement);
-            }
-        }
-
-        function openDayModal(dateStr) {
-            app.state.currentDayDate = dateStr;
-            const modal = document.getElementById('dayModal');
-            const date = new Date(dateStr + 'T00:00:00');
+        // Handle clicks for admin dropdowns
+        document.addEventListener('click', function(e) {
+            console.log('Click detected on:', e.target);
             
-            document.getElementById('dayModalTitle').textContent = 'Edit Day';
-            document.getElementById('dayModalDate').textContent = date.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-
-            // Load current schedule
-            const schedule = app.state.daySchedules.find(s => s.date === dateStr);
-            document.getElementById('daySchedule').value = schedule ? schedule.schedule : '';
-
-            // Load current day type
-            const dayType = app.state.dayTypes.find(t => t.date === dateStr);
-            document.getElementById('dayType').value = dayType ? dayType.type : '';
-
-            // Load events
-            const events = app.state.events.filter(e => e.date === dateStr);
-            const eventsHtml = events.map(event => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #e5e7eb;">
-                    <div>
-                        <strong>${event.title}</strong>
-                        ${event.time ? `<span style="color: #6b7280; margin-left: 8px;">${event.time}</span>` : ''}
-                    </div>
-                    <div>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem;" onclick="editEvent(${event.id})">Edit</button>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; margin-left: 4px;" onclick="deleteEvent(${event.id})">Delete</button>
-                    </div>
-                </div>
-            `).join('');
-            
-            document.getElementById('dayEvents').innerHTML = eventsHtml || '<p style="color: #6b7280;">No events scheduled</p>';
-
-            modal.classList.add('show');
-        }
-
-        function closeDayModal() {
-            document.getElementById('dayModal').classList.remove('show');
-        }
-
-        function viewDayDetails(dateStr) {
-            const events = app.state.events.filter(e => e.date === dateStr);
-            const schedule = app.state.daySchedules.find(s => s.date === dateStr);
-            const dayType = app.state.dayTypes.find(t => t.date === dateStr);
-            
-            let details = `Date: ${new Date(dateStr + 'T00:00:00').toLocaleDateString()}\n\n`;
-            
-            if (schedule) {
-                details += `Schedule: ${schedule.schedule} Day\n`;
+            // Handle A/B schedule click - simplified check
+            const abAdmin = e.target.closest('.ab-schedule-admin');
+            if (abAdmin) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('AB schedule clicked');
+                const dropdown = abAdmin.querySelector('.ab-dropdown');
+                if (dropdown) {
+                    console.log('Found AB dropdown, toggling...');
+                    // Close all other dropdowns
+                    document.querySelectorAll('.ab-dropdown.show, .day-type-dropdown.show').forEach(d => {
+                        if (d !== dropdown) d.classList.remove('show');
+                    });
+                    dropdown.classList.toggle('show');
+                    console.log('Dropdown classes:', dropdown.className);
+                }
             }
             
-            if (dayType) {
-                details += `Day Type: ${dayType.type}\n`;
+            // Handle day type click - simplified check
+            const dayTypeAdmin = e.target.closest('.day-type-admin');
+            if (dayTypeAdmin) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Day type clicked');
+                const dropdown = dayTypeAdmin.querySelector('.day-type-dropdown');
+                if (dropdown) {
+                    console.log('Found day type dropdown, toggling...');
+                    // Close all other dropdowns
+                    document.querySelectorAll('.ab-dropdown.show, .day-type-dropdown.show').forEach(d => {
+                        if (d !== dropdown) d.classList.remove('show');
+                    });
+                    dropdown.classList.toggle('show');
+                    console.log('Dropdown classes:', dropdown.className);
+                }
             }
             
-            if (events.length > 0) {
-                details += `\nEvents:\n`;
-                events.forEach(event => {
-                    details += `• ${event.title}`;
-                    if (event.time) details += ` at ${event.time}`;
-                    details += '\n';
+            // Handle option clicks
+            if (e.target.classList.contains('ab-option')) {
+                e.stopPropagation();
+                e.preventDefault();
+                const dateStr = e.target.dataset.date;
+                const schedule = e.target.dataset.schedule;
+                setABSchedule(dateStr, schedule === 'clear' ? null : schedule);
+            }
+            
+            if (e.target.classList.contains('day-type-option')) {
+                e.stopPropagation();
+                e.preventDefault();
+                const dateStr = e.target.dataset.date;
+                const type = e.target.dataset.type;
+                setDayType(dateStr, type === 'clear' ? null : type);
+            }
+            
+            // Close dropdowns when clicking elsewhere
+            if (!abAdmin && !dayTypeAdmin && !e.target.closest('.ab-dropdown') && !e.target.closest('.day-type-dropdown')) {
+                document.querySelectorAll('.ab-dropdown.show, .day-type-dropdown.show').forEach(d => {
+                    d.classList.remove('show');
                 });
-            } else {
-                details += '\nNo events scheduled';
             }
-            
-            alert(details);
-        }
-
-        async function updateDaySchedule() {
-            const schedule = document.getElementById('daySchedule').value;
-            
-            try {
-                const response = await fetch(`${app.config.apiUrl}/day-schedules`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        date: app.state.currentDayDate,
-                        schedule: schedule || null
-                    })
-                });
-
-                if (response.ok) {
-                    showNotification('Schedule updated');
-                    await loadCalendarData();
-                } else {
-                    throw new Error('Failed to update schedule');
-                }
-            } catch (error) {
-                showNotification('Error updating schedule', true);
-            }
-        }
-
-        async function updateDayType() {
-            const type = document.getElementById('dayType').value;
-            
-            try {
-                const response = await fetch(`${app.config.apiUrl}/day-types`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        date: app.state.currentDayDate,
-                        type: type || null
-                    })
-                });
-
-                if (response.ok) {
-                    showNotification('Day type updated');
-                    await loadCalendarData();
-                } else {
-                    throw new Error('Failed to update day type');
-                }
-            } catch (error) {
-                showNotification('Error updating day type', true);
-            }
-        }
-
-        function addNewEvent() {
-            closeDayModal();
-            openEventModal(null, app.state.currentDayDate);
-        }
-
-        function openEventModal(eventId = null, date = null) {
-            const modal = document.getElementById('eventModal');
-            
-            if (eventId) {
-                // Edit existing event
-                const event = app.state.events.find(e => e.id === eventId);
-                if (event) {
-                    document.getElementById('modalTitle').textContent = 'Edit Event';
-                    document.getElementById('eventId').value = event.id;
-                    document.getElementById('eventDate').value = event.date;
-                    document.getElementById('eventSchool').value = event.school;
-                    document.getElementById('eventTitle').value = event.title;
-                    document.getElementById('eventDepartment').value = event.department || '';
-                    document.getElementById('eventTime').value = event.time || '';
-                    document.getElementById('eventDescription').value = event.description || '';
-                }
-            } else {
-                // New event
-                document.getElementById('modalTitle').textContent = 'Add Event';
-                document.getElementById('eventId').value = '';
-                document.getElementById('eventDate').value = date || app.state.currentDayDate;
-                document.getElementById('eventSchool').value = app.state.selectedSchool;
-                document.getElementById('eventTitle').value = '';
-                document.getElementById('eventDepartment').value = '';
-                document.getElementById('eventTime').value = '';
-                document.getElementById('eventDescription').value = '';
-            }
-            
-            modal.classList.add('show');
-        }
-
-        function editEvent(eventId) {
-            closeDayModal();
-            openEventModal(eventId);
-        }
-
-        function closeModal() {
-            document.getElementById('eventModal').classList.remove('show');
-        }
-
-        async function saveEvent(event) {
-            event.preventDefault();
-            
-            const eventId = document.getElementById('eventId').value;
-            const eventData = {
-                school: document.getElementById('eventSchool').value,
-                date: document.getElementById('eventDate').value,
-                title: document.getElementById('eventTitle').value,
-                department: document.getElementById('eventDepartment').value || null,
-                time: document.getElementById('eventTime').value || null,
-                description: document.getElementById('eventDescription').value || null
-            };
-
-            try {
-                const url = eventId 
-                    ? `${app.config.apiUrl}/events/${eventId}`
-                    : `${app.config.apiUrl}/events`;
-                
-                const method = eventId ? 'PUT' : 'POST';
-                
-                const response = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(eventData)
-                });
-
-                if (response.ok) {
-                    showNotification(`Event ${eventId ? 'updated' : 'created'} successfully`);
-                    closeModal();
-                    await loadCalendarData();
-                    openDayModal(eventData.date);
-                } else {
-                    throw new Error('Failed to save event');
-                }
-            } catch (error) {
-                showNotification('Error saving event', true);
-            }
-        }
-
-        async function deleteEvent(eventId) {
-            if (!confirm('Are you sure you want to delete this event?')) return;
-            
-            try {
-                const response = await fetch(`${app.config.apiUrl}/events/${eventId}`, {
-                    method: 'DELETE'
-                });
-
-                if (response.ok) {
-                    showNotification('Event deleted');
-                    await loadCalendarData();
-                    openDayModal(app.state.currentDayDate);
-                } else {
-                    throw new Error('Failed to delete event');
-                }
-            } catch (error) {
-                showNotification('Error deleting event', true);
-            }
-        }
-
-        function initializeDatabase() {
-            return handleSetup({ preventDefault: () => {} });
-        }
+        });
     </script>
 </body>
 </html>
