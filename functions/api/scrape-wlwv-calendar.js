@@ -1,3 +1,5 @@
+// functions/api/scrape-wlwv-calendar.js
+
 export async function onRequestPost(context) {
   const { env, request } = context;
   
@@ -10,53 +12,61 @@ export async function onRequestPost(context) {
       fetchOnly = false // If true, only return events without inserting
     } = body;
 
-    // The Blackboard calendar likely has a JSON API endpoint
-    // We need to find the actual API calls the calendar makes
-    // These are common patterns for Blackboard calendars:
-    
+    // Found the actual Blackboard API endpoint from diagnostic
     const baseUrl = 'https://www.wlwv.k12.or.us';
-    const calendarId = '3526'; // From your URL
+    const calendarId = '3526';
     
-    // Try different possible API endpoints
-    const possibleEndpoints = [
-      `/cms/Tools/Calendar/CalendarHandler.ashx?action=list&calendar_id=${calendarId}&start_date=${targetMonth}-01&end_date=${targetMonth}-31`,
-      `/api/calendar/${calendarId}/events?month=${targetMonth}`,
-      `/AJAXCalendar.aspx?calendar_id=${calendarId}&view=month&date=${targetMonth}`,
-      `/cms/calendar/events?id=${calendarId}&month=${targetMonth}`
-    ];
-
+    // Parse the target month to get start and end dates
+    const [year, month] = targetMonth.split('-').map(n => parseInt(n));
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0); // Last day of the month
+    
+    // Format dates for the API (M/D/YYYY format)
+    const startDateStr = `${month}/${startDate.getDate()}/${year}`;
+    const endDateStr = `${month}/${endDate.getDate()}/${year}`;
+    
     let events = [];
-    let foundEndpoint = false;
+    
+    try {
+      // Use the actual API endpoint discovered by diagnostic
+      const apiUrl = `${baseUrl}/site/UserControls/Calendar/CalendarController.aspx/GetEvents`;
+      
+      console.log(`Fetching events from ${startDateStr} to ${endDateStr}`);
+      
+      // Blackboard typically expects POST requests with specific format
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+          calendarId: parseInt(calendarId),
+          startDate: startDateStr,
+          endDate: endDateStr,
+          templatePath: '',
+          templateName: '',
+          calendarName: '',
+          culture: 'en-US'
+        })
+      });
 
-    // Try each endpoint
-    for (const endpoint of possibleEndpoints) {
-      try {
-        console.log(`Trying endpoint: ${baseUrl}${endpoint}`);
-        const response = await fetch(`${baseUrl}${endpoint}`, {
-          headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (compatible; CalendarScraper/1.0)'
-          }
-        });
-
-        if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          
-          if (contentType && contentType.includes('application/json')) {
-            const data = await response.json();
-            events = parseBlackboardEvents(data, department, school);
-            foundEndpoint = true;
-            break;
-          }
-        }
-      } catch (err) {
-        console.error(`Failed endpoint ${endpoint}:`, err);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('API Response:', data);
+        
+        // Blackboard typically returns data in a 'd' property
+        const eventData = data.d || data;
+        events = parseBlackboardAPIResponse(eventData, department, school);
+      } else {
+        console.error('API request failed:', response.status, response.statusText);
+        // Try alternative request format
+        events = await tryAlternativeFormats(baseUrl, calendarId, startDateStr, endDateStr, department, school);
       }
-    }
-
-    // If JSON endpoints don't work, fall back to HTML parsing
-    if (!foundEndpoint) {
-      console.log('Falling back to HTML parsing...');
+    } catch (err) {
+      console.error('Failed to fetch from API:', err);
+      // Fall back to scraping if API fails
       events = await scrapeHTMLCalendar(baseUrl, calendarId, targetMonth, department, school);
     }
 
@@ -150,7 +160,129 @@ export async function onRequestPost(context) {
   }
 }
 
-// Parse Blackboard JSON response
+// Parse Blackboard API response
+function parseBlackboardAPIResponse(data, department, school) {
+  const events = [];
+  
+  try {
+    // Handle different response structures
+    let eventList = [];
+    
+    if (typeof data === 'string') {
+      // Sometimes the response is a JSON string that needs parsing
+      try {
+        data = JSON.parse(data);
+      } catch (e) {
+        console.error('Failed to parse string response:', e);
+        return events;
+      }
+    }
+    
+    if (Array.isArray(data)) {
+      eventList = data;
+    } else if (data && data.Events) {
+      eventList = data.Events;
+    } else if (data && data.items) {
+      eventList = data.items;
+    } else if (data && data.data) {
+      eventList = data.data;
+    }
+    
+    console.log(`Found ${eventList.length} raw events`);
+    
+    for (const item of eventList) {
+      try {
+        // Blackboard calendar event structure
+        const event = {
+          date: parseBlackboardDate(
+            item.Start || item.StartDate || item.EventDate || item.Date || item.start
+          ),
+          title: item.Title || item.EventTitle || item.Subject || item.title || 'Untitled Event',
+          time: parseBlackboardTime(
+            item.StartTime || item.Time || item.start
+          ),
+          description: item.Description || item.Body || item.desc || '',
+          department: department,
+          school: school
+        };
+
+        // Skip A/B day entries
+        const titleLower = event.title.toLowerCase();
+        if (titleLower === 'a day' || 
+            titleLower === 'b day' ||
+            titleLower === 'day a' ||
+            titleLower === 'day b' ||
+            titleLower.match(/^[ab]\s+day$/i) ||
+            titleLower.match(/^day\s+[ab]$/i)) {
+          console.log('Skipping A/B day entry:', event.title);
+          continue;
+        }
+
+        if (event.date && event.title) {
+          events.push(event);
+          console.log('Added event:', event.title, event.date);
+        }
+      } catch (err) {
+        console.error('Error parsing event:', err, item);
+      }
+    }
+  } catch (err) {
+    console.error('Error in parseBlackboardAPIResponse:', err);
+  }
+  
+  return events;
+}
+
+// Try alternative API request formats
+async function tryAlternativeFormats(baseUrl, calendarId, startDate, endDate, department, school) {
+  const events = [];
+  
+  // Try GET request with query parameters
+  try {
+    const getUrl = `${baseUrl}/site/UserControls/Calendar/CalendarController.aspx/GetEvents?calendarId=${calendarId}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+    
+    const response = await fetch(getUrl, {
+      headers: {
+        'Accept': 'application/json, text/plain, */*'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return parseBlackboardAPIResponse(data.d || data, department, school);
+    }
+  } catch (err) {
+    console.error('GET request failed:', err);
+  }
+  
+  // Try form-encoded POST
+  try {
+    const formData = new URLSearchParams();
+    formData.append('calendarId', calendarId);
+    formData.append('startDate', startDate);
+    formData.append('endDate', endDate);
+    
+    const response = await fetch(`${baseUrl}/site/UserControls/Calendar/CalendarController.aspx/GetEvents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: formData.toString()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return parseBlackboardAPIResponse(data.d || data, department, school);
+    }
+  } catch (err) {
+    console.error('Form-encoded POST failed:', err);
+  }
+  
+  return events;
+}
+
+// Parse Blackboard JSON response (keep for compatibility)
 function parseBlackboardEvents(data, department, school) {
   const events = [];
   
