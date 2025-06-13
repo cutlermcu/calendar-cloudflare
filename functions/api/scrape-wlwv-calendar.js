@@ -1,4 +1,4 @@
-// functions/api/scrape-wlwv-calendar.js
+// functions/api/scrape-wlwv-export.js
 
 export async function onRequestPost(context) {
   const { env, request } = context;
@@ -9,83 +9,101 @@ export async function onRequestPost(context) {
       targetMonth = new Date().toISOString().slice(0, 7), // YYYY-MM format
       department = 'Life',
       school = 'wlhs',
-      fetchOnly = false // If true, only return events without inserting
+      fetchOnly = false
     } = body;
 
-    // Found the actual Blackboard API endpoint from diagnostic
+    // Use the export endpoint found in diagnostic
     const baseUrl = 'https://www.wlwv.k12.or.us';
-    const calendarId = '3526';
+    const exportUrl = '/site/UserControls/Calendar/EventExportByDateRangeWrapper.aspx';
     
     // Parse the target month to get start and end dates
     const [year, month] = targetMonth.split('-').map(n => parseInt(n));
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0); // Last day of the month
     
-    // Format dates for the API (M/D/YYYY format)
+    // Format dates for the export (M/D/YYYY format)
     const startDateStr = `${month}/${startDate.getDate()}/${year}`;
     const endDateStr = `${month}/${endDate.getDate()}/${year}`;
     
     let events = [];
     
     try {
-      // Use the actual API endpoint discovered by diagnostic
-      const apiUrl = `${baseUrl}/site/UserControls/Calendar/CalendarController.aspx/GetEvents`;
-      
-      console.log(`Fetching events from ${startDateStr} to ${endDateStr}`);
-      
-      // Blackboard typically expects POST requests with specific format
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Accept': 'application/json, text/javascript, */*; q=0.01',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': baseUrl,
-          'Referer': `${baseUrl}/Page/3071`
-        },
-        body: JSON.stringify({
-          calendarId: parseInt(calendarId),
-          startDate: startDateStr,
-          endDate: endDateStr,
-          templatePath: '',
-          templateName: '',
-          calendarName: '',
-          culture: 'en-US'
-        })
+      // Try the export endpoint with various parameter formats
+      const exportParams = new URLSearchParams({
+        'calendarId': '3526',
+        'startDate': startDateStr,
+        'endDate': endDateStr,
+        'calendarID': '3526', // Try both cases
+        'start': startDateStr,
+        'end': endDateStr,
+        'format': 'json',
+        'export': 'true'
       });
-
-      console.log('Response status:', response.status);
-      const responseText = await response.text();
-      console.log('Response text:', responseText.substring(0, 500));
-
-      if (response.ok) {
-        try {
-          const data = JSON.parse(responseText);
-          console.log('Parsed data:', data);
-          
-          // Blackboard typically returns data in a 'd' property
-          const eventData = data.d || data;
-          events = parseBlackboardAPIResponse(eventData, department, school);
-        } catch (parseError) {
-          console.error('Failed to parse JSON:', parseError);
-          // Sometimes Blackboard returns HTML instead of JSON
-          events = await scrapeHTMLResponse(responseText, department, school);
+      
+      console.log(`Fetching events export from ${startDateStr} to ${endDateStr}`);
+      
+      // Try GET request first
+      let response = await fetch(`${baseUrl}${exportUrl}?${exportParams}`, {
+        headers: {
+          'Accept': 'application/json, text/calendar, text/plain, */*',
+          'Referer': `${baseUrl}/Page/3071`
         }
-      } else {
-        console.error('API request failed:', response.status, response.statusText);
-        // Try alternative request format
-        events = await tryAlternativeFormats(baseUrl, calendarId, startDateStr, endDateStr, department, school);
+      });
+      
+      console.log('Export response status:', response.status);
+      
+      if (!response.ok) {
+        // Try POST request
+        response = await fetch(`${baseUrl}${exportUrl}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json, text/calendar, text/plain, */*',
+            'Referer': `${baseUrl}/Page/3071`
+          },
+          body: exportParams.toString()
+        });
       }
+      
+      const contentType = response.headers.get('content-type');
+      const responseText = await response.text();
+      
+      console.log('Content type:', contentType);
+      console.log('Response preview:', responseText.substring(0, 500));
+      
+      if (contentType && contentType.includes('calendar')) {
+        // It's returning iCal format
+        events = parseICalData(responseText, department, school);
+      } else if (contentType && contentType.includes('json')) {
+        // JSON format
+        const data = JSON.parse(responseText);
+        events = parseExportedEvents(data, department, school);
+      } else {
+        // Try to detect format
+        if (responseText.startsWith('BEGIN:VCALENDAR')) {
+          events = parseICalData(responseText, department, school);
+        } else if (responseText.trim().startsWith('[') || responseText.trim().startsWith('{')) {
+          const data = JSON.parse(responseText);
+          events = parseExportedEvents(data, department, school);
+        } else {
+          // HTML response - try to extract download link
+          const downloadLink = extractDownloadLink(responseText);
+          if (downloadLink) {
+            events = await fetchDownloadLink(baseUrl, downloadLink, department, school);
+          }
+        }
+      }
+      
     } catch (err) {
-      console.error('Failed to fetch from API:', err);
-      // Try to fetch and parse the calendar page directly
-      events = await fetchAndParseCalendarPage(baseUrl, calendarId, targetMonth, department, school);
+      console.error('Export fetch failed:', err);
+      
+      // Last resort: try to get the RSS feed
+      events = await tryRSSFeed(baseUrl, targetMonth, department, school);
     }
 
-    // Filter out A/B day schedule entries
+    // Filter out A/B day entries
     events = events.filter(event => {
       const titleLower = event.title.toLowerCase();
-      // Filter out entries that are just "A day", "B day", "A Day", "B Day", etc.
       return !(
         titleLower === 'a day' || 
         titleLower === 'b day' ||
@@ -172,259 +190,121 @@ export async function onRequestPost(context) {
   }
 }
 
-// Parse Blackboard API response
-function parseBlackboardAPIResponse(data, department, school) {
+// Parse iCal format data
+function parseICalData(icalText, department, school) {
   const events = [];
   
   try {
-    // Handle different response structures
-    let eventList = [];
+    // Split into individual events
+    const vevents = icalText.split('BEGIN:VEVENT');
     
-    if (typeof data === 'string') {
-      // Sometimes the response is a JSON string that needs parsing
-      try {
-        data = JSON.parse(data);
-      } catch (e) {
-        console.error('Failed to parse string response:', e);
-        return events;
-      }
-    }
-    
-    if (Array.isArray(data)) {
-      eventList = data;
-    } else if (data && data.Events) {
-      eventList = data.Events;
-    } else if (data && data.items) {
-      eventList = data.items;
-    } else if (data && data.data) {
-      eventList = data.data;
-    }
-    
-    console.log(`Found ${eventList.length} raw events`);
-    
-    for (const item of eventList) {
-      try {
-        // Blackboard calendar event structure
-        const event = {
-          date: parseBlackboardDate(
-            item.Start || item.StartDate || item.EventDate || item.Date || item.start
-          ),
-          title: item.Title || item.EventTitle || item.Subject || item.title || 'Untitled Event',
-          time: parseBlackboardTime(
-            item.StartTime || item.Time || item.start
-          ),
-          description: item.Description || item.Body || item.desc || '',
-          department: department,
-          school: school
-        };
-
-        // Skip A/B day entries
-        const titleLower = event.title.toLowerCase();
-        if (titleLower === 'a day' || 
-            titleLower === 'b day' ||
-            titleLower === 'day a' ||
-            titleLower === 'day b' ||
-            titleLower.match(/^[ab]\s+day$/i) ||
-            titleLower.match(/^day\s+[ab]$/i)) {
-          console.log('Skipping A/B day entry:', event.title);
-          continue;
+    for (let i = 1; i < vevents.length; i++) {
+      const vevent = vevents[i];
+      
+      // Extract properties
+      const summary = extractICalProperty(vevent, 'SUMMARY');
+      const dtstart = extractICalProperty(vevent, 'DTSTART');
+      const description = extractICalProperty(vevent, 'DESCRIPTION');
+      
+      if (summary && dtstart) {
+        const date = parseICalDate(dtstart);
+        if (date) {
+          events.push({
+            title: summary,
+            date: date,
+            time: extractTimeFromICalDate(dtstart),
+            description: description || '',
+            department: department,
+            school: school
+          });
         }
-
-        if (event.date && event.title) {
-          events.push(event);
-          console.log('Added event:', event.title, event.date);
-        }
-      } catch (err) {
-        console.error('Error parsing event:', err, item);
       }
     }
   } catch (err) {
-    console.error('Error in parseBlackboardAPIResponse:', err);
+    console.error('iCal parsing error:', err);
   }
   
   return events;
 }
 
-// Try alternative API request formats
-async function tryAlternativeFormats(baseUrl, calendarId, startDate, endDate, department, school) {
-  const events = [];
-  
-  // Try GET request with query parameters
-  try {
-    const getUrl = `${baseUrl}/site/UserControls/Calendar/CalendarController.aspx/GetEvents?calendarId=${calendarId}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
-    
-    const response = await fetch(getUrl, {
-      headers: {
-        'Accept': 'application/json, text/plain, */*'
-      }
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return parseBlackboardAPIResponse(data.d || data, department, school);
-    }
-  } catch (err) {
-    console.error('GET request failed:', err);
-  }
-  
-  // Try form-encoded POST
-  try {
-    const formData = new URLSearchParams();
-    formData.append('calendarId', calendarId);
-    formData.append('startDate', startDate);
-    formData.append('endDate', endDate);
-    
-    const response = await fetch(`${baseUrl}/site/UserControls/Calendar/CalendarController.aspx/GetEvents`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json'
-      },
-      body: formData.toString()
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      return parseBlackboardAPIResponse(data.d || data, department, school);
-    }
-  } catch (err) {
-    console.error('Form-encoded POST failed:', err);
-  }
-  
-  return events;
+// Extract property from iCal event
+function extractICalProperty(vevent, property) {
+  const match = vevent.match(new RegExp(`${property}:([^\\r\\n]+)`));
+  return match ? match[1].trim() : null;
 }
 
-// Parse Blackboard JSON response (keep for compatibility)
-function parseBlackboardEvents(data, department, school) {
+// Parse iCal date format
+function parseICalDate(dtstart) {
+  try {
+    // Format: 20250613T120000 or 20250613
+    const dateMatch = dtstart.match(/(\d{4})(\d{2})(\d{2})/);
+    if (dateMatch) {
+      return `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+    }
+  } catch (err) {
+    console.error('iCal date parsing error:', err);
+  }
+  return null;
+}
+
+// Extract time from iCal datetime
+function extractTimeFromICalDate(dtstart) {
+  try {
+    const timeMatch = dtstart.match(/T(\d{2})(\d{2})(\d{2})/);
+    if (timeMatch) {
+      return `${timeMatch[1]}:${timeMatch[2]}`;
+    }
+  } catch (err) {
+    console.error('iCal time parsing error:', err);
+  }
+  return null;
+}
+
+// Parse exported events (JSON format)
+function parseExportedEvents(data, department, school) {
   const events = [];
   
-  // Handle different possible JSON structures
-  let eventList = [];
+  let eventList = Array.isArray(data) ? data : (data.events || data.items || []);
   
-  if (Array.isArray(data)) {
-    eventList = data;
-  } else if (data.events && Array.isArray(data.events)) {
-    eventList = data.events;
-  } else if (data.Items && Array.isArray(data.Items)) {
-    eventList = data.Items;
-  }
-
   for (const item of eventList) {
     try {
-      // Common Blackboard event properties
       const event = {
-        date: parseBlackboardDate(item.StartDate || item.start_date || item.EventDate || item.date),
-        title: item.Title || item.title || item.EventTitle || item.name || 'Untitled Event',
-        time: parseBlackboardTime(item.StartTime || item.start_time || item.Time),
-        description: item.Description || item.description || item.Details || '',
+        title: item.title || item.summary || item.name || 'Untitled',
+        date: parseExportDate(item.date || item.start || item.startDate),
+        time: item.time || parseExportTime(item.start || item.startTime),
+        description: item.description || item.details || '',
         department: department,
         school: school
       };
-
-      // Skip A/B day entries at the individual parsing level too
-      const titleLower = event.title.toLowerCase();
-      if (titleLower === 'a day' || 
-          titleLower === 'b day' ||
-          titleLower === 'day a' ||
-          titleLower === 'day b' ||
-          titleLower.match(/^[ab]\s+day$/i) ||
-          titleLower.match(/^day\s+[ab]$/i)) {
-        return; // Skip this event
-      }
-
-      if (event.date) {
+      
+      if (event.date && event.title) {
         events.push(event);
       }
     } catch (err) {
-      console.error('Error parsing event:', err);
+      console.error('Event parsing error:', err);
     }
   }
-
-  return events;
-}
-
-// Fallback HTML scraping method
-async function scrapeHTMLCalendar(baseUrl, calendarId, targetMonth, department, school) {
-  const events = [];
   
-  try {
-    // Request the calendar page with specific parameters
-    const [year, month] = targetMonth.split('-');
-    const url = `${baseUrl}/Page/3071#calendar${calendarId}/${year}${month}01/month`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'text/html,application/xhtml+xml',
-        'User-Agent': 'Mozilla/5.0 (compatible; CalendarScraper/1.0)'
-      }
-    });
-
-    const html = await response.text();
-    
-    // Look for JavaScript variables that might contain event data
-    const scriptMatches = html.matchAll(/var\s+(?:events|calendarData|eventData)\s*=\s*(\[[\s\S]*?\]);/g);
-    
-    for (const match of scriptMatches) {
-      try {
-        const jsonStr = match[1];
-        const data = JSON.parse(jsonStr);
-        const parsedEvents = parseBlackboardEvents(data, department, school);
-        events.push(...parsedEvents);
-      } catch (err) {
-        console.error('Failed to parse embedded JSON:', err);
-      }
-    }
-
-    // Also look for data attributes or hidden inputs
-    const dataMatches = html.matchAll(/data-events=['"]([^'"]+)['"]/g);
-    for (const match of dataMatches) {
-      try {
-        const jsonStr = match[1].replace(/&quot;/g, '"');
-        const data = JSON.parse(jsonStr);
-        const parsedEvents = parseBlackboardEvents(data, department, school);
-        events.push(...parsedEvents);
-      } catch (err) {
-        console.error('Failed to parse data attribute:', err);
-      }
-    }
-  } catch (err) {
-    console.error('HTML scraping failed:', err);
-  }
-
   return events;
 }
 
-// Parse various date formats used by Blackboard
-function parseBlackboardDate(dateStr) {
+// Parse various date formats from export
+function parseExportDate(dateStr) {
   if (!dateStr) return null;
   
   try {
-    // Handle different date formats
-    // Format: "2025-06-13T00:00:00"
-    if (dateStr.includes('T')) {
+    // ISO format
+    if (dateStr.includes('-')) {
       return dateStr.split('T')[0];
     }
     
-    // Format: "6/13/2025"
+    // M/D/YYYY format
     if (dateStr.includes('/')) {
       const [month, day, year] = dateStr.split('/');
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
     
-    // Format: "June 13, 2025"
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    for (let i = 0; i < monthNames.length; i++) {
-      if (dateStr.includes(monthNames[i])) {
-        const match = dateStr.match(/(\w+)\s+(\d{1,2}),?\s+(\d{4})/);
-        if (match) {
-          const monthNum = i + 1;
-          return `${match[3]}-${monthNum.toString().padStart(2, '0')}-${match[2].padStart(2, '0')}`;
-        }
-      }
-    }
-    
-    // Try parsing as-is
+    // Try parsing as Date
     const date = new Date(dateStr);
     if (!isNaN(date.getTime())) {
       return date.toISOString().split('T')[0];
@@ -436,35 +316,146 @@ function parseBlackboardDate(dateStr) {
   return null;
 }
 
-// Parse time formats
-function parseBlackboardTime(timeStr) {
+// Parse time from various formats
+function parseExportTime(timeStr) {
   if (!timeStr) return null;
   
   try {
-    // Remove any extra whitespace
-    timeStr = timeStr.trim();
+    // Extract time from ISO datetime
+    if (timeStr.includes('T')) {
+      const timePart = timeStr.split('T')[1];
+      return timePart.substring(0, 5);
+    }
     
-    // Format: "3:00 PM"
+    // H:MM AM/PM format
     const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
     if (match) {
       let hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
+      const minutes = match[2];
       const meridiem = match[3];
       
       if (meridiem) {
-        if (meridiem.toUpperCase() === 'PM' && hours < 12) {
-          hours += 12;
-        } else if (meridiem.toUpperCase() === 'AM' && hours === 12) {
-          hours = 0;
-        }
+        if (meridiem.toUpperCase() === 'PM' && hours < 12) hours += 12;
+        if (meridiem.toUpperCase() === 'AM' && hours === 12) hours = 0;
       }
       
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      return `${hours.toString().padStart(2, '0')}:${minutes}`;
     }
   } catch (err) {
     console.error('Time parsing error:', err);
   }
   
+  return null;
+}
+
+// Extract download link from HTML response
+function extractDownloadLink(html) {
+  const match = html.match(/href=['"]([^'"]*\.(ics|json|csv)[^'"]*)['"]/i);
+  return match ? match[1] : null;
+}
+
+// Fetch calendar from download link
+async function fetchDownloadLink(baseUrl, link, department, school) {
+  try {
+    const fullUrl = link.startsWith('http') ? link : baseUrl + link;
+    const response = await fetch(fullUrl);
+    const content = await response.text();
+    
+    if (content.includes('BEGIN:VCALENDAR')) {
+      return parseICalData(content, department, school);
+    } else {
+      const data = JSON.parse(content);
+      return parseExportedEvents(data, department, school);
+    }
+  } catch (err) {
+    console.error('Download link fetch failed:', err);
+  }
+  return [];
+}
+
+// Try RSS feed as last resort
+async function tryRSSFeed(baseUrl, targetMonth, department, school) {
+  const events = [];
+  
+  try {
+    // Common RSS feed URLs for Blackboard calendars
+    const rssUrls = [
+      `/RSS.aspx?type=N&data=3526`,
+      `/calendar/rss/3526`,
+      `/Page/3071/RSS`
+    ];
+    
+    for (const rssPath of rssUrls) {
+      try {
+        const response = await fetch(baseUrl + rssPath);
+        if (response.ok) {
+          const rssText = await response.text();
+          const rssEvents = parseRSSFeed(rssText, department, school);
+          events.push(...rssEvents);
+          if (events.length > 0) break;
+        }
+      } catch (err) {
+        console.error(`RSS feed ${rssPath} failed:`, err);
+      }
+    }
+  } catch (err) {
+    console.error('RSS feed fetch failed:', err);
+  }
+  
+  return events;
+}
+
+// Parse RSS feed
+function parseRSSFeed(rssText, department, school) {
+  const events = [];
+  
+  try {
+    const items = rssText.split('<item>');
+    
+    for (let i = 1; i < items.length; i++) {
+      const item = items[i];
+      
+      const title = extractXMLTag(item, 'title');
+      const description = extractXMLTag(item, 'description');
+      const pubDate = extractXMLTag(item, 'pubDate');
+      
+      if (title && pubDate) {
+        const date = parseRSSDate(pubDate);
+        if (date) {
+          events.push({
+            title: title,
+            date: date,
+            time: null,
+            description: description || '',
+            department: department,
+            school: school
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('RSS parsing error:', err);
+  }
+  
+  return events;
+}
+
+// Extract XML tag content
+function extractXMLTag(xml, tag) {
+  const match = xml.match(new RegExp(`<${tag}><!\\[CDATA\\[([^\\]]+)\\]\\]></${tag}>|<${tag}>([^<]+)</${tag}>`));
+  return match ? (match[1] || match[2]).trim() : null;
+}
+
+// Parse RSS date format
+function parseRSSDate(dateStr) {
+  try {
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch (err) {
+    console.error('RSS date parsing error:', err);
+  }
   return null;
 }
 
