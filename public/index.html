@@ -1477,10 +1477,9 @@
         // Fixed API URL Configuration
         function setApiUrl() {
             app.state.environment = detectEnvironment();
-            
             if (app.state.environment === 'production') {
                 // Use your actual backend URL with https://
-                app.config.apiUrl = 'https://wlwv-calendar-api.vercel.app/api';
+                app.config.apiUrl = '/api';
             } else {
                 app.config.apiUrl = window.location.origin + '/api';
             }
