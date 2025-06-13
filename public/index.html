@@ -1426,7 +1426,7 @@
                     <h3>System Status</h3>
                     <div id="dbStatus">Checking database connection...</div>
                 </div>
-    <!-- Replace the calendar scraper UI section in your admin panel with this -->
+   <!-- Replace the calendar scraper UI section in your admin panel with this -->
 <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px;">
     <h3>📥 Import Calendar Events</h3>
     <p style="color: #6b7280; margin-bottom: 20px;">Import events from the WLWV district calendar</p>
@@ -1608,7 +1608,7 @@ async function fetchEvents(event) {
     showNotification('Fetching calendar events...');
     
     try {
-        const response = await apiCall('/scrape-wlwv-calendar', {
+        const response = await apiCall('/scrape-wlwv-export', {
             method: 'POST',
             body: JSON.stringify({
                 targetMonth: formData.get('month'),
