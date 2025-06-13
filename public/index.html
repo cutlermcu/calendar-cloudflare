@@ -1611,7 +1611,7 @@ async function fetchEvents(event) {
     showNotification('Fetching calendar events...');
     
     try {
-        const response = await apiCall('/scrape-wlwv-html.js', {
+        const response = await apiCall('/scrape-wlwv-html', {
             method: 'POST',
             body: JSON.stringify({
                 targetMonth: formData.get('month'),
