@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1475,23 +1475,14 @@
         }
 
         // Fixed API URL Configuration
+       
         function setApiUrl() {
-            app.state.environment = detectEnvironment();
-            if (app.state.environment === 'production') {
-                // Use your actual backend URL with https://
-                app.config.apiUrl = '/api';
-            } else {
-                app.config.apiUrl = window.location.origin + '/api';
-            }
-            
-            console.log('Environment detected:', app.state.environment);
-            console.log('API URL set to:', app.config.apiUrl);
-            
-            // Update the form
-            const apiUrlInput = document.getElementById('apiUrl');
+                    app.config.apiUrl = '/api';
+                    console.log('API URL set to:', app.config.apiUrl);
+       const apiUrlInput = document.getElementById('apiUrl');
             if (apiUrlInput) {
-                apiUrlInput.value = app.config.apiUrl;
-            }
+                    apiUrlInput.value = app.config.apiUrl;
+                    }
         }
 
         // Enhanced API Call Helper with Error Handling
