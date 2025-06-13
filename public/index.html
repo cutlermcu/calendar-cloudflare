@@ -1426,7 +1426,7 @@
                     <h3>System Status</h3>
                     <div id="dbStatus">Checking database connection...</div>
                 </div>
-   <!-- Replace the calendar scraper UI section in your admin panel with this -->
+ <!-- Replace the calendar scraper UI section in your admin panel with this -->
 <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px;">
     <h3>📥 Import Calendar Events</h3>
     <p style="color: #6b7280; margin-bottom: 20px;">Import events from the WLWV district calendar</p>
@@ -1461,6 +1461,9 @@
                 </button>
                 <button type="button" class="btn btn-secondary" onclick="diagnoseCalendar()" style="margin-left: 10px;">
                     🔍 Diagnose Calendar
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="debugAPI()" style="margin-left: 10px; background: #7c3aed; color: white;">
+                    🐛 Debug API
                 </button>
             </div>
         </form>
@@ -1959,6 +1962,60 @@ async function diagnoseCalendar() {
     } catch (error) {
         showNotification('Diagnostic failed: ' + error.message, true);
         console.error('Diagnostic error:', error);
+    }
+}
+
+async function debugAPI() {
+    showNotification('Running API debug tests...');
+    
+    try {
+        const monthInput = document.getElementById('scrapeMonth');
+        const response = await apiCall('/debug-calendar-api', {
+            method: 'POST',
+            body: JSON.stringify({
+                targetMonth: monthInput.value || '2025-06'
+            })
+        });
+        
+        console.log('=== CALENDAR API DEBUG RESULTS ===');
+        console.log(response);
+        
+        // Display results
+        const resultsDiv = document.getElementById('scrapeResults') || document.getElementById('importResults');
+        const resultsContent = document.getElementById('scrapeResultsContent') || document.getElementById('importResultsContent');
+        
+        if (resultsDiv && resultsContent) {
+            resultsDiv.style.display = 'block';
+            
+            let html = '<h5>API Debug Results</h5>';
+            
+            response.tests.forEach(test => {
+                html += `<div style="margin: 10px 0; padding: 10px; background: #f3f4f6; border-radius: 4px;">`;
+                html += `<strong>${test.name}</strong><br>`;
+                
+                if (test.error) {
+                    html += `<span style="color: red;">Error: ${test.error}</span>`;
+                } else {
+                    html += `Status: ${test.status || 'N/A'}<br>`;
+                    if (test.responsePreview) {
+                        html += `Response preview:<br>`;
+                        html += `<pre style="background: white; padding: 5px; border-radius: 4px; overflow-x: auto; font-size: 0.75rem; max-height: 200px;">${test.responsePreview}</pre>`;
+                    }
+                    if (test.parsedData) {
+                        html += `Parsed data structure: ${JSON.stringify(test.dataStructure)}<br>`;
+                    }
+                }
+                
+                html += '</div>';
+            });
+            
+            resultsContent.innerHTML = html;
+        }
+        
+        showNotification('Debug complete - check console for full details');
+    } catch (error) {
+        showNotification('Debug failed: ' + error.message, true);
+        console.error('Debug error:', error);
     }
 }
 
