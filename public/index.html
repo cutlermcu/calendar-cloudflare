@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -951,6 +951,10 @@
             background: #f8fafc;
         }
 
+        .event-card.hidden {
+            display: none !important;
+        }
+
         .event-info {
             flex: 1;
         }
@@ -1007,6 +1011,21 @@
         .event-badge.dept-none {
             background: #e5e7eb;
             color: #374151;
+        }
+
+        /* Department filter styles */
+        .dept-filter-container {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .filter-results {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: #6b7280;
         }
 
         .grade-tabs {
@@ -1475,14 +1494,24 @@
         }
 
         // Fixed API URL Configuration
-       
         function setApiUrl() {
-                    app.config.apiUrl = '/api';
-                    console.log('API URL set to:', app.config.apiUrl);
-       const apiUrlInput = document.getElementById('apiUrl');
+            app.state.environment = detectEnvironment();
+            
+            if (app.state.environment === 'production') {
+                // Use your actual backend URL with https://
+                app.config.apiUrl = 'https://wlwv-calendar-api.vercel.app/api';
+            } else {
+                app.config.apiUrl = window.location.origin + '/api';
+            }
+            
+            console.log('Environment detected:', app.state.environment);
+            console.log('API URL set to:', app.config.apiUrl);
+            
+            // Update the form
+            const apiUrlInput = document.getElementById('apiUrl');
             if (apiUrlInput) {
-                    apiUrlInput.value = app.config.apiUrl;
-                    }
+                apiUrlInput.value = app.config.apiUrl;
+            }
         }
 
         // Enhanced API Call Helper with Error Handling
@@ -1904,6 +1933,100 @@
             }
         }
 
+        // Create department filter UI
+        function createDeptFilterUI(events) {
+            // Count events by department
+            const deptCounts = {
+                all: events.length,
+                ASB: 0,
+                Life: 0,
+                Athletics: 0,
+                'Art/Theater': 0,
+                Counseling: 0,
+                Testing: 0,
+                Staff: 0,
+                none: 0
+            };
+            
+            events.forEach(event => {
+                if (event.department) {
+                    deptCounts[event.department] = (deptCounts[event.department] || 0) + 1;
+                } else {
+                    deptCounts.none++;
+                }
+            });
+            
+            // Build filter HTML with counts
+            let filterHTML = `
+                <div class="dept-filter-container">
+                    <label style="font-size: 0.85rem; color: #6b7280; margin-right: 10px;">Filter by Department:</label>
+                    <select id="deptFilter" class="form-input" style="width: auto; padding: 6px 12px; font-size: 0.85rem;" onchange="filterEventsByDept(this.value)">
+                        <option value="all">All Departments (${deptCounts.all})</option>
+            `;
+            
+            ['ASB', 'Life', 'Athletics', 'Art/Theater', 'Counseling', 'Testing', 'Staff'].forEach(dept => {
+                if (deptCounts[dept] > 0) {
+                    filterHTML += `<option value="${dept}">${dept} (${deptCounts[dept]})</option>`;
+                }
+            });
+            
+            if (deptCounts.none > 0) {
+                filterHTML += `<option value="none">No Department (${deptCounts.none})</option>`;
+            }
+            
+            filterHTML += `
+                    </select>
+                    <span class="filter-results">${deptCounts.all} event${deptCounts.all !== 1 ? 's' : ''}</span>
+                </div>
+            `;
+            
+            return filterHTML;
+        }
+
+        // Filter events by department
+        function filterEventsByDept(selectedDept) {
+            const eventCards = document.querySelectorAll('.event-card');
+            let visibleCount = 0;
+            
+            eventCards.forEach(card => {
+                // Find the department badge
+                const deptBadge = card.querySelector('.event-badge');
+                let cardDept = 'none';
+                
+                if (deptBadge) {
+                    // Extract department from the text content
+                    cardDept = deptBadge.textContent.trim();
+                    if (cardDept === 'General') cardDept = 'none';
+                }
+                
+                // Show/hide based on filter
+                if (selectedDept === 'all') {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else if (selectedDept === 'none' && cardDept === 'none') {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else if (selectedDept === cardDept) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+            
+            // Update results counter
+            const resultsElement = document.querySelector('.filter-results');
+            if (resultsElement) {
+                resultsElement.textContent = `${visibleCount} event${visibleCount !== 1 ? 's' : ''}`;
+            }
+            
+            // Show/hide empty state
+            const emptyState = document.querySelector('.events-empty-state');
+            if (emptyState) {
+                emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        }
+
         // Open user modal (read-only view)
         function openUserModal(dateStr, formattedDate) {
             const modal = document.getElementById('dayModal');
@@ -1949,6 +2072,7 @@
                     <div class="section-header">
                         📅 Today's Events
                     </div>
+                    ${events.length > 0 ? createDeptFilterUI(events) : ''}
                     <div class="section-content" style="padding: 0;">
             `;
             
@@ -1982,6 +2106,14 @@
                         </div>
                     `;
                 });
+                
+                // Add hidden empty state for when filter shows no results
+                content += `
+                    <div class="empty-state events-empty-state" style="display: none;">
+                        <div class="empty-state-icon">🔍</div>
+                        <div>No events match the selected department</div>
+                    </div>
+                `;
             } else {
                 content += `
                     <div class="empty-state">
@@ -2092,6 +2224,7 @@
                     <div class="section-header">
                         📅 Events
                     </div>
+                    ${events.length > 0 ? createDeptFilterUI(events) : ''}
                     <div class="section-content">
                         <div class="existing-items">
             `;
@@ -2105,7 +2238,7 @@
                 const deptClass = event.department ? `dept-${event.department.toLowerCase().replace(/[\/\s]+/g, '-')}` : '';
                 
                 content += `
-                    <div class="admin-item-card ${deptClass}">
+                    <div class="admin-item-card event-card ${deptClass}">
                         <div class="admin-item-info">
                             <div class="admin-item-title">${event.title}</div>
                             <div class="admin-item-details">
@@ -2118,12 +2251,23 @@
                             <button class="btn btn-sm btn-edit" onclick="editEvent(${event.id})">Edit</button>
                             <button class="btn btn-sm btn-delete" onclick="deleteEvent(${event.id})">Delete</button>
                         </div>
+                        <div class="event-badge ${event.department ? `dept-${event.department.toLowerCase().replace(/[\/\s]+/g, '-')}` : 'dept-none'}" style="display: none;">
+                            ${event.department || 'General'}
+                        </div>
                     </div>
                 `;
             });
             
             if (events.length === 0) {
                 content += '<p style="color: #6b7280; text-align: center;">No events scheduled</p>';
+            } else {
+                // Add hidden empty state for filter
+                content += `
+                    <div class="empty-state events-empty-state" style="display: none;">
+                        <div class="empty-state-icon">🔍</div>
+                        <div>No events match the selected department</div>
+                    </div>
+                `;
             }
             
             content += `
