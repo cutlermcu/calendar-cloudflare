@@ -39,7 +39,9 @@ export async function onRequestPost(context) {
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
           'Accept': 'application/json, text/javascript, */*; q=0.01',
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': baseUrl,
+          'Referer': `${baseUrl}/Page/3071`
         },
         body: JSON.stringify({
           calendarId: parseInt(calendarId),
@@ -52,13 +54,23 @@ export async function onRequestPost(context) {
         })
       });
 
+      console.log('Response status:', response.status);
+      const responseText = await response.text();
+      console.log('Response text:', responseText.substring(0, 500));
+
       if (response.ok) {
-        const data = await response.json();
-        console.log('API Response:', data);
-        
-        // Blackboard typically returns data in a 'd' property
-        const eventData = data.d || data;
-        events = parseBlackboardAPIResponse(eventData, department, school);
+        try {
+          const data = JSON.parse(responseText);
+          console.log('Parsed data:', data);
+          
+          // Blackboard typically returns data in a 'd' property
+          const eventData = data.d || data;
+          events = parseBlackboardAPIResponse(eventData, department, school);
+        } catch (parseError) {
+          console.error('Failed to parse JSON:', parseError);
+          // Sometimes Blackboard returns HTML instead of JSON
+          events = await scrapeHTMLResponse(responseText, department, school);
+        }
       } else {
         console.error('API request failed:', response.status, response.statusText);
         // Try alternative request format
@@ -66,8 +78,8 @@ export async function onRequestPost(context) {
       }
     } catch (err) {
       console.error('Failed to fetch from API:', err);
-      // Fall back to scraping if API fails
-      events = await scrapeHTMLCalendar(baseUrl, calendarId, targetMonth, department, school);
+      // Try to fetch and parse the calendar page directly
+      events = await fetchAndParseCalendarPage(baseUrl, calendarId, targetMonth, department, school);
     }
 
     // Filter out A/B day schedule entries
