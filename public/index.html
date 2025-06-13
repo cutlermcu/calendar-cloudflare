@@ -1426,129 +1426,437 @@
                     <h3>System Status</h3>
                     <div id="dbStatus">Checking database connection...</div>
                 </div>
-             <!-- Add this to your admin panel in the Admin Screen section -->
+    <!-- Replace the calendar scraper UI section in your admin panel with this -->
 <div style="margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 8px;">
     <h3>📥 Import Calendar Events</h3>
     <p style="color: #6b7280; margin-bottom: 20px;">Import events from the WLWV district calendar</p>
     
-    <form id="scraperForm" onsubmit="scrapeCalendar(event)">
-        <div class="form-row">
-            <div class="form-group" style="flex: 1;">
-                <label class="form-label" for="scrapeMonth">Month to Import</label>
-                <input type="month" class="form-input" id="scrapeMonth" name="month" required>
+    <!-- Step 1: Fetch Events -->
+    <div id="fetchStep">
+        <form id="fetchForm" onsubmit="fetchEvents(event)">
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label" for="scrapeMonth">Month to Import</label>
+                    <input type="month" class="form-input" id="scrapeMonth" name="month" required>
+                </div>
+                
+                <div class="form-group" style="flex: 1;">
+                    <label class="form-label" for="scrapeSchool">Import for School</label>
+                    <select class="form-input" id="scrapeSchool" name="school" required>
+                        <option value="wlhs">West Linn HS</option>
+                        <option value="wvhs">Wilsonville HS</option>
+                        <option value="both">Both Schools</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="flex: 0 0 200px; align-self: flex-end;">
+                    <button type="submit" class="btn btn-primary" id="fetchButton" style="width: 100%;">
+                        🔍 Fetch Events
+                    </button>
+                </div>
             </div>
-            
-            <div class="form-group" style="flex: 1;">
-                <label class="form-label" for="scrapeDepartment">Assign to Department</label>
-                <select class="form-input" id="scrapeDepartment" name="department" required>
-                    <option value="Life">Life</option>
-                    <option value="ASB">ASB</option>
-                    <option value="Athletics">Athletics</option>
-                    <option value="Art/Theater">Art/Theater</option>
-                    <option value="Counseling">Counseling</option>
-                    <option value="Testing">Testing</option>
-                    <option value="Staff">Staff</option>
-                </select>
+            <div style="margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="testScraper()">
+                    🧪 Test Connection
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="diagnoseCalendar()" style="margin-left: 10px;">
+                    🔍 Diagnose Calendar
+                </button>
             </div>
-            
-            <div class="form-group" style="flex: 1;">
-                <label class="form-label" for="scrapeSchool">Import for School</label>
-                <select class="form-input" id="scrapeSchool" name="school" required>
-                    <option value="wlhs">West Linn HS</option>
-                    <option value="wvhs">Wilsonville HS</option>
-                    <option value="both">Both Schools</option>
-                </select>
+        </form>
+    </div>
+    
+    <!-- Step 2: Select Events -->
+    <div id="selectStep" style="display: none; margin-top: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h4>Select Events to Import</h4>
+            <div>
+                <button class="btn btn-secondary" onclick="selectAllEvents()">
+                    ✓ Select All
+                </button>
+                <button class="btn btn-secondary" onclick="deselectAllEvents()" style="margin-left: 10px;">
+                    ✗ Deselect All
+                </button>
+                <button class="btn btn-secondary" onclick="resetImport()" style="margin-left: 10px;">
+                    ↺ Start Over
+                </button>
             </div>
         </div>
         
-        <div style="margin-top: 20px;">
-            <button type="submit" class="btn btn-primary" id="scrapeButton">
-                🔄 Import Events
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="testScraper()" style="margin-left: 10px;">
-                🧪 Test Connection
+        <div style="margin-bottom: 20px;">
+            <label class="form-label">Quick Department Assignment:</label>
+            <select id="bulkDepartment" class="form-input" style="width: 200px; display: inline-block; margin-left: 10px;" onchange="applyBulkDepartment()">
+                <option value="">-- Select to apply to all --</option>
+                <option value="Life">Life</option>
+                <option value="ASB">ASB</option>
+                <option value="Athletics">Athletics</option>
+                <option value="Art/Theater">Art/Theater</option>
+                <option value="Counseling">Counseling</option>
+                <option value="Testing">Testing</option>
+                <option value="Staff">Staff</option>
+            </select>
+        </div>
+        
+        <div id="eventsContainer" style="max-height: 500px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; background: white;">
+            <!-- Events will be listed here -->
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div id="selectionCount" style="color: #6b7280;">
+                0 events selected
+            </div>
+            <button class="btn btn-primary" onclick="importSelectedEvents()" id="importButton">
+                📥 Import Selected Events
             </button>
         </div>
-    </form>
+    </div>
     
-    <div id="scrapeResults" style="margin-top: 20px; display: none;">
+    <!-- Results -->
+    <div id="importResults" style="margin-top: 30px; display: none;">
         <h4>Import Results</h4>
-        <div id="scrapeResultsContent" style="padding: 15px; background: white; border-radius: 6px; border: 1px solid #e5e7eb;">
+        <div id="importResultsContent" style="padding: 15px; background: white; border-radius: 6px; border: 1px solid #e5e7eb;">
             <!-- Results will be displayed here -->
         </div>
     </div>
 </div>
 
-<script>
-// Add these functions to your existing script section
+<style>
+.event-import-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    transition: background 0.2s;
+}
 
-async function scrapeCalendar(event) {
+.event-import-item:hover {
+    background: #f9fafb;
+}
+
+.event-import-item:last-child {
+    border-bottom: none;
+}
+
+.event-checkbox {
+    margin-right: 12px;
+}
+
+.event-import-details {
+    flex: 1;
+    margin-right: 16px;
+}
+
+.event-import-title {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.event-import-meta {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.event-department-select {
+    width: 150px;
+    padding: 6px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.event-status-badge {
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-new {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-duplicate {
+    background: #fed7aa;
+    color: #92400e;
+}
+</style>
+
+<script>
+// Global variable to store fetched events
+let fetchedEvents = [];
+let selectedSchool = '';
+
+// Fetch events from the calendar
+async function fetchEvents(event) {
     event.preventDefault();
     
     const form = event.target;
     const formData = new FormData(form);
-    const button = document.getElementById('scrapeButton');
+    const button = document.getElementById('fetchButton');
+    const originalText = button.textContent;
+    
+    // Reset previous results
+    fetchedEvents = [];
+    selectedSchool = formData.get('school');
+    
+    // Show loading state
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner"></span> Fetching...';
+    showNotification('Fetching calendar events...');
+    
+    try {
+        const response = await apiCall('/scrape-wlwv-calendar', {
+            method: 'POST',
+            body: JSON.stringify({
+                targetMonth: formData.get('month'),
+                fetchOnly: true // Add this flag to just fetch without inserting
+            })
+        });
+        
+        if (response.events && response.events.length > 0) {
+            fetchedEvents = response.events;
+            displayEvents();
+            showNotification(`Found ${response.events.length} events`);
+        } else {
+            showNotification('No events found for the selected month', true);
+        }
+        
+    } catch (error) {
+        showNotification('Failed to fetch events: ' + error.message, true);
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
+// Display fetched events with checkboxes
+function displayEvents() {
+    const container = document.getElementById('eventsContainer');
+    const selectStep = document.getElementById('selectStep');
+    
+    container.innerHTML = '';
+    
+    fetchedEvents.forEach((event, index) => {
+        const eventDate = new Date(event.date + 'T00:00:00');
+        const dateStr = eventDate.toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric' 
+        });
+        
+        const eventEl = document.createElement('div');
+        eventEl.className = 'event-import-item';
+        eventEl.innerHTML = `
+            <input type="checkbox" 
+                   class="event-checkbox" 
+                   id="event-${index}" 
+                   data-index="${index}"
+                   onchange="updateSelectionCount()">
+            
+            <div class="event-import-details">
+                <div class="event-import-title">${event.title}</div>
+                <div class="event-import-meta">
+                    ${dateStr}
+                    ${event.time ? ' • ' + formatTime(event.time) : ''}
+                    ${event.description ? ' • ' + event.description : ''}
+                    <span class="event-status-badge status-new" id="status-${index}">New</span>
+                </div>
+            </div>
+            
+            <select class="event-department-select" id="dept-${index}">
+                <option value="Life">Life</option>
+                <option value="ASB">ASB</option>
+                <option value="Athletics">Athletics</option>
+                <option value="Art/Theater">Art/Theater</option>
+                <option value="Counseling">Counseling</option>
+                <option value="Testing">Testing</option>
+                <option value="Staff">Staff</option>
+            </select>
+        `;
+        
+        container.appendChild(eventEl);
+        
+        // Try to auto-detect department based on title/description
+        const autoDetectedDept = detectDepartment(event);
+        if (autoDetectedDept) {
+            document.getElementById(`dept-${index}`).value = autoDetectedDept;
+        }
+    });
+    
+    // Show the selection step
+    document.getElementById('fetchStep').style.display = 'none';
+    selectStep.style.display = 'block';
+    
+    // Check for duplicates
+    checkDuplicates();
+}
+
+// Auto-detect department based on keywords
+function detectDepartment(event) {
+    const text = (event.title + ' ' + (event.description || '')).toLowerCase();
+    
+    if (text.includes('game') || text.includes('match') || text.includes('tournament') || 
+        text.includes('athletic') || text.includes('sport')) {
+        return 'Athletics';
+    }
+    if (text.includes('asb') || text.includes('student council') || text.includes('dance') ||
+        text.includes('homecoming') || text.includes('prom')) {
+        return 'ASB';
+    }
+    if (text.includes('play') || text.includes('concert') || text.includes('art') || 
+        text.includes('theater') || text.includes('theatre') || text.includes('musical')) {
+        return 'Art/Theater';
+    }
+    if (text.includes('test') || text.includes('exam') || text.includes('sat') || 
+        text.includes('act') || text.includes('assessment')) {
+        return 'Testing';
+    }
+    if (text.includes('counseling') || text.includes('college') || text.includes('career') ||
+        text.includes('guidance')) {
+        return 'Counseling';
+    }
+    if (text.includes('staff') || text.includes('teacher') || text.includes('professional') ||
+        text.includes('development') || text.includes('meeting')) {
+        return 'Staff';
+    }
+    
+    return 'Life'; // Default
+}
+
+// Check for duplicate events
+async function checkDuplicates() {
+    if (selectedSchool === 'both') {
+        // If importing to both schools, we can't check duplicates without specifying which school
+        return;
+    }
+    
+    try {
+        const events = await apiCall(`/events?school=${selectedSchool}`);
+        
+        fetchedEvents.forEach((event, index) => {
+            const isDuplicate = events.some(existing => 
+                existing.date === event.date && 
+                existing.title === event.title
+            );
+            
+            if (isDuplicate) {
+                const statusBadge = document.getElementById(`status-${index}`);
+                statusBadge.textContent = 'Duplicate';
+                statusBadge.className = 'event-status-badge status-duplicate';
+                
+                // Optionally uncheck duplicates by default
+                document.getElementById(`event-${index}`).checked = false;
+            }
+        });
+        
+        updateSelectionCount();
+    } catch (error) {
+        console.error('Failed to check duplicates:', error);
+    }
+}
+
+// Select/deselect all events
+function selectAllEvents() {
+    document.querySelectorAll('.event-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelectionCount();
+}
+
+function deselectAllEvents() {
+    document.querySelectorAll('.event-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelectionCount();
+}
+
+// Apply department to all selected events
+function applyBulkDepartment() {
+    const dept = document.getElementById('bulkDepartment').value;
+    if (!dept) return;
+    
+    document.querySelectorAll('.event-checkbox:checked').forEach(checkbox => {
+        const index = checkbox.dataset.index;
+        document.getElementById(`dept-${index}`).value = dept;
+    });
+    
+    // Reset the bulk selector
+    document.getElementById('bulkDepartment').value = '';
+}
+
+// Update selection count
+function updateSelectionCount() {
+    const checkedCount = document.querySelectorAll('.event-checkbox:checked').length;
+    document.getElementById('selectionCount').textContent = `${checkedCount} events selected`;
+}
+
+// Import selected events
+async function importSelectedEvents() {
+    const selectedEvents = [];
+    
+    document.querySelectorAll('.event-checkbox:checked').forEach(checkbox => {
+        const index = parseInt(checkbox.dataset.index);
+        const dept = document.getElementById(`dept-${index}`).value;
+        
+        selectedEvents.push({
+            ...fetchedEvents[index],
+            department: dept
+        });
+    });
+    
+    if (selectedEvents.length === 0) {
+        showNotification('Please select at least one event to import', true);
+        return;
+    }
+    
+    const button = document.getElementById('importButton');
     const originalText = button.textContent;
     
     // Show loading state
     button.disabled = true;
     button.innerHTML = '<span class="spinner"></span> Importing...';
-    showNotification('Starting calendar import...');
+    showNotification(`Importing ${selectedEvents.length} events...`);
     
     try {
-        const schools = formData.get('school') === 'both' ? ['wlhs', 'wvhs'] : [formData.get('school')];
+        const schools = selectedSchool === 'both' ? ['wlhs', 'wvhs'] : [selectedSchool];
         let totalInserted = 0;
         let totalSkipped = 0;
         let totalErrors = 0;
         
         for (const school of schools) {
-            const response = await apiCall('/scrape-wlwv-calendar', {
-                method: 'POST',
-                body: JSON.stringify({
-                    targetMonth: formData.get('month'),
-                    department: formData.get('department'),
-                    school: school
-                })
-            });
-            
-            totalInserted += response.inserted || 0;
-            totalSkipped += response.skipped || 0;
-            totalErrors += (response.errors || []).length;
+            for (const event of selectedEvents) {
+                try {
+                    // Check if event already exists
+                    const existingEvents = await apiCall(`/events?school=${school}`);
+                    const exists = existingEvents.some(e => 
+                        e.date === event.date && e.title === event.title
+                    );
+                    
+                    if (!exists) {
+                        await apiCall('/events', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                ...event,
+                                school: school
+                            })
+                        });
+                        totalInserted++;
+                    } else {
+                        totalSkipped++;
+                    }
+                } catch (error) {
+                    totalErrors++;
+                    console.error('Failed to import event:', event.title, error);
+                }
+            }
         }
         
         // Display results
-        const resultsDiv = document.getElementById('scrapeResults');
-        const resultsContent = document.getElementById('scrapeResultsContent');
-        
-        resultsDiv.style.display = 'block';
-        resultsContent.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 15px;">
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: #10b981;">
-                        ${totalInserted}
-                    </div>
-                    <div style="color: #6b7280; font-size: 0.9rem;">Events Imported</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: #f59e0b;">
-                        ${totalSkipped}
-                    </div>
-                    <div style="color: #6b7280; font-size: 0.9rem;">Duplicates Skipped</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: #ef4444;">
-                        ${totalErrors}
-                    </div>
-                    <div style="color: #6b7280; font-size: 0.9rem;">Errors</div>
-                </div>
-            </div>
-            ${totalErrors > 0 ? '<p style="color: #ef4444;">Some events failed to import. Check console for details.</p>' : ''}
-            <p style="margin: 0; color: #10b981; font-weight: 600;">
-                ✅ Import completed successfully!
-            </p>
-        `;
-        
-        showNotification(`Imported ${totalInserted} new events!`);
+        showImportResults(totalInserted, totalSkipped, totalErrors);
+        showNotification(`Successfully imported ${totalInserted} events!`);
         
         // Refresh calendar data
         await fetchCalendarData(true);
@@ -1558,52 +1866,99 @@ async function scrapeCalendar(event) {
         
     } catch (error) {
         showNotification('Import failed: ' + error.message, true);
-        
-        const resultsDiv = document.getElementById('scrapeResults');
-        const resultsContent = document.getElementById('scrapeResultsContent');
-        
-        resultsDiv.style.display = 'block';
-        resultsContent.innerHTML = `
-            <p style="color: #ef4444; margin: 0;">
-                ❌ Import failed: ${error.message}
-            </p>
-            <p style="color: #6b7280; margin: 10px 0 0 0; font-size: 0.9rem;">
-                This may be due to the calendar requiring authentication or using a different data format.
-                Check the browser console for more details.
-            </p>
-        `;
     } finally {
         button.disabled = false;
         button.textContent = originalText;
     }
 }
 
-async function testScraper() {
-    showNotification('Testing calendar connection...');
+// Show import results
+function showImportResults(inserted, skipped, errors) {
+    const resultsDiv = document.getElementById('importResults');
+    const resultsContent = document.getElementById('importResultsContent');
+    
+    resultsDiv.style.display = 'block';
+    resultsContent.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 15px;">
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: #10b981;">
+                    ${inserted}
+                </div>
+                <div style="color: #6b7280; font-size: 0.9rem;">Events Imported</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: #f59e0b;">
+                    ${skipped}
+                </div>
+                <div style="color: #6b7280; font-size: 0.9rem;">Duplicates Skipped</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: #ef4444;">
+                    ${errors}
+                </div>
+                <div style="color: #6b7280; font-size: 0.9rem;">Errors</div>
+            </div>
+        </div>
+        <p style="margin: 0; color: #10b981; font-weight: 600;">
+            ✅ Import completed!
+        </p>
+    `;
+}
+
+// Reset import process
+function resetImport() {
+    document.getElementById('fetchStep').style.display = 'block';
+    document.getElementById('selectStep').style.display = 'none';
+    document.getElementById('importResults').style.display = 'none';
+    fetchedEvents = [];
+}
+
+// Format time for display
+function formatTime(time) {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours);
+    const m = parseInt(minutes);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayHours = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+    return `${displayHours}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+async function diagnoseCalendar() {
+    showNotification('Diagnosing calendar structure...');
     
     try {
-        // Try to fetch the calendar page
-        const response = await fetch('https://www.wlwv.k12.or.us/Page/3071', {
-            mode: 'no-cors' // This will at least tell us if the URL is reachable
-        });
+        const response = await apiCall('/diagnose-calendar?url=' + encodeURIComponent('https://www.wlwv.k12.or.us/Page/3071'));
         
-        showNotification('Calendar page is reachable. Import may work!');
+        console.log('Calendar Diagnostic Results:', response);
         
-        const resultsDiv = document.getElementById('scrapeResults');
-        const resultsContent = document.getElementById('scrapeResultsContent');
+        const resultsDiv = document.getElementById('scrapeResults') || document.getElementById('importResults');
+        const resultsContent = document.getElementById('scrapeResultsContent') || document.getElementById('importResultsContent');
         
-        resultsDiv.style.display = 'block';
-        resultsContent.innerHTML = `
-            <p style="color: #10b981; margin: 0;">
-                ✅ Calendar page is accessible!
-            </p>
-            <p style="color: #6b7280; margin: 10px 0 0 0; font-size: 0.9rem;">
-                Note: Due to CORS restrictions, scraping may need to be done from a server environment
-                or you may need to use a proxy service.
-            </p>
-        `;
+        if (resultsDiv && resultsContent) {
+            resultsDiv.style.display = 'block';
+            
+            let diagnosticHtml = '<h5>Calendar Diagnostic Results</h5>';
+            diagnosticHtml += '<pre style="background: #f3f4f6; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 0.8rem;">';
+            diagnosticHtml += JSON.stringify(response, null, 2);
+            diagnosticHtml += '</pre>';
+            
+            if (response.summary) {
+                diagnosticHtml += '<div style="margin-top: 15px;">';
+                diagnosticHtml += '<h6>Summary:</h6>';
+                diagnosticHtml += `<p>✓ Calendar Scripts Found: ${response.summary.hasCalendarScripts ? 'Yes' : 'No'}</p>`;
+                diagnosticHtml += `<p>✓ API Endpoints Found: ${response.summary.hasApiEndpoints ? 'Yes' : 'No'}</p>`;
+                diagnosticHtml += `<p>✓ Possible Events Found: ${response.summary.possibleEventCount || 0}</p>`;
+                diagnosticHtml += '</div>';
+            }
+            
+            resultsContent.innerHTML = diagnosticHtml;
+        }
+        
+        showNotification('Diagnostic complete - check console for details');
     } catch (error) {
-        showNotification('Connection test failed', true);
+        showNotification('Diagnostic failed: ' + error.message, true);
+        console.error('Diagnostic error:', error);
     }
 }
 
