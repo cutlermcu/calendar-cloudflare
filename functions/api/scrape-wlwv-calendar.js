@@ -1,5 +1,3 @@
-// functions/api/scrape-wlwv-calendar.js
-
 export async function onRequestPost(context) {
   const { env, request } = context;
   
