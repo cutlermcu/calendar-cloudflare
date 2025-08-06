@@ -1,0 +1,32 @@
+{
+  "name": "wlwv-calendar-cloudflare",
+  "version": "3.0.0",
+  "description": "WLWV Life Calendar - Cloudflare Workers Deployment",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html dist/",
+    "dev": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "calendar",
+    "school",
+    "cloudflare",
+    "workers",
+    "wlwv",
+    "materials",
+    "events"
+  ],
+  "author": "WLWV District",
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.12"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
